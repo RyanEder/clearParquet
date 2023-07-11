@@ -4,10 +4,11 @@
 
 namespace clearParquet {
 
+// Simple templated data storage
 template <class T>
 class DataStore {
-   public:
-    DataStore(uint32_t reserveSize, uint32_t columnCount) : _columnCount(columnCount) {
+public:
+    DataStore(uint32_t reserveSize, uint32_t columnCount) : _columnCount(columnCount), _col(0), _sizeIndexer(0) {
         if (columnCount > 0) {
             _store.resize(columnCount);
             _sizes.resize(columnCount);
@@ -62,12 +63,12 @@ class DataStore {
         }
     }
 
-   public:
+public:
     std::vector<std::vector<T> > _store;
     std::vector<uint64_t> _sizes;
     uint32_t _columnCount;
-    uint32_t _col = 0;
-    uint32_t _sizeIndexer = 0;
+    uint32_t _col;
+    uint32_t _sizeIndexer;
 };
 
 }  // end namespace clearParquet

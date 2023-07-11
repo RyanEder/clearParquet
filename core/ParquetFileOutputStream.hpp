@@ -5,8 +5,9 @@
 
 namespace clearParquet {
 
+// Shim layer for file output.
 class FileOutputStreamImpl {
-   public:
+public:
     bool Open(const std::string& path, bool append = false) {
         _path = path;
         return true;
@@ -15,12 +16,12 @@ class FileOutputStreamImpl {
         return _path;
     }
 
-   private:
+private:
     std::string _path;
 };
 
 class FileOutputStream {
-   public:
+public:
     FileOutputStream() {
         _impl.reset(new FileOutputStreamImpl());
     };
@@ -33,7 +34,7 @@ class FileOutputStream {
         return _impl->path();
     }
 
-   private:
+private:
     std::unique_ptr<FileOutputStreamImpl> _impl;
 };
 

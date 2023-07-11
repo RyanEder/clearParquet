@@ -5,10 +5,10 @@
 namespace clearParquet {
 
 class WriterProperties {
-   public:
+public:
     class Builder {
-       public:
-        Builder() {}
+    public:
+        Builder() : _compression(Compression::UNCOMPRESSED) {}
         virtual ~Builder() {}
 
         std::shared_ptr<WriterProperties> build() {
@@ -19,7 +19,7 @@ class WriterProperties {
             _compression = compression;
         }
 
-       private:
+    private:
         Compression::type _compression;
     };
 };

@@ -1,3 +1,4 @@
+# clearParquet static lib
 file(GLOB_RECURSE CORE_SOURCES
         RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
         *.cpp)

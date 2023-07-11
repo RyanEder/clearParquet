@@ -6,11 +6,12 @@
 #include <string_view>
 
 namespace clearParquet {
+constexpr size_t DEFAULT_ROW_SIZE = 1LL * 1024LL * 1024LL;  // 1MB
 
 class StreamWriter {
-   public:
+public:
     StreamWriter() = default;
-    explicit StreamWriter(std::unique_ptr<ParquetFileWriter> writer) : _fileWriter(std::move(writer)) {}
+    explicit StreamWriter(std::unique_ptr<ParquetFileWriter> writer) : _fileWriter(std::move(writer)), _maxRowGroupSize(DEFAULT_ROW_SIZE) {}
 
     ~StreamWriter() = default;
 
@@ -73,8 +74,8 @@ class StreamWriter {
     }
 
     StreamWriter& operator<<(const char* v) {
-        stringData = v;
-        _fileWriter->_strCols->Store(stringData, stringData.length() + 4);
+        _stringData = v;
+        _fileWriter->_strCols->Store(_stringData, _stringData.length() + 4);
         return *this;
     }
     StreamWriter& operator<<(const std::string& v) {
@@ -82,8 +83,8 @@ class StreamWriter {
         return *this;
     }
     StreamWriter& operator<<(::std::string_view v) {
-        stringData = v;
-        _fileWriter->_strCols->Store(stringData, stringData.length() + 4);
+        _stringData = v;
+        _fileWriter->_strCols->Store(_stringData, _stringData.length() + 4);
         return *this;
     }
     template <class T>
@@ -92,11 +93,6 @@ class StreamWriter {
     }
     void WriteBuffer(uint32_t len, const uint8_t* buffer) {
         _fileWriter->WriteBuffer(len, buffer);
-    }
-    void WriteString() {
-        uint32_t len = stringData.length();
-        WriteBuffer(4, (const uint8_t*)&len);
-        WriteBuffer(len, (const uint8_t*)stringData.c_str());
     }
 
     void WriteInt() {
@@ -118,11 +114,10 @@ class StreamWriter {
         _maxRowGroupSize = rowsize;
     }
 
-   private:
+private:
     std::unique_ptr<ParquetFileWriter> _fileWriter;
-    bool _switch = 0;
-    uint64_t _maxRowGroupSize = 0;
-    std::string stringData;
+    uint64_t _maxRowGroupSize;
+    std::string _stringData;
     uint64_t val;
 };
 

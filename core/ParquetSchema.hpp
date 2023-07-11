@@ -12,8 +12,13 @@ struct ListEncoding {
     enum type { ONE_LEVEL, TWO_LEVEL, THREE_LEVEL };
 };
 
+constexpr size_t BITWIDTH_8 = 8;
+constexpr size_t BITWIDTH_16 = 16;
+constexpr size_t BITWIDTH_32 = 32;
+constexpr size_t BITWIDTH_64 = 64;
+
 class Node {
-   public:
+public:
     enum type { PRIMITIVE, GROUP };
 
     Node(Node::type type, const std::string& name, Repetition::type repetition, ConvertedType::type convertedType, int id = -1)
@@ -50,42 +55,42 @@ class Node {
                 _logicalType.__set_TIMESTAMP(_logicalType.TIMESTAMP);
                 break;
             case ConvertedType::UINT_8:
-                _logicalType.INTEGER.__set_bitWidth(8);
+                _logicalType.INTEGER.__set_bitWidth(BITWIDTH_8);
                 _logicalType.INTEGER.__set_isSigned(false);
                 _logicalType.__set_INTEGER(_logicalType.INTEGER);
                 break;
             case ConvertedType::UINT_16:
-                _logicalType.INTEGER.__set_bitWidth(16);
+                _logicalType.INTEGER.__set_bitWidth(BITWIDTH_16);
                 _logicalType.INTEGER.__set_isSigned(false);
                 _logicalType.__set_INTEGER(_logicalType.INTEGER);
                 break;
             case ConvertedType::UINT_32:
-                _logicalType.INTEGER.__set_bitWidth(32);
+                _logicalType.INTEGER.__set_bitWidth(BITWIDTH_32);
                 _logicalType.INTEGER.__set_isSigned(false);
                 _logicalType.__set_INTEGER(_logicalType.INTEGER);
                 break;
             case ConvertedType::UINT_64:
-                _logicalType.INTEGER.__set_bitWidth(64);
+                _logicalType.INTEGER.__set_bitWidth(BITWIDTH_64);
                 _logicalType.INTEGER.__set_isSigned(false);
                 _logicalType.__set_INTEGER(_logicalType.INTEGER);
                 break;
             case ConvertedType::INT_8:
-                _logicalType.INTEGER.__set_bitWidth(8);
+                _logicalType.INTEGER.__set_bitWidth(BITWIDTH_8);
                 _logicalType.INTEGER.__set_isSigned(true);
                 _logicalType.__set_INTEGER(_logicalType.INTEGER);
                 break;
             case ConvertedType::INT_16:
-                _logicalType.INTEGER.__set_bitWidth(16);
+                _logicalType.INTEGER.__set_bitWidth(BITWIDTH_16);
                 _logicalType.INTEGER.__set_isSigned(true);
                 _logicalType.__set_INTEGER(_logicalType.INTEGER);
                 break;
             case ConvertedType::INT_32:
-                _logicalType.INTEGER.__set_bitWidth(32);
+                _logicalType.INTEGER.__set_bitWidth(BITWIDTH_32);
                 _logicalType.INTEGER.__set_isSigned(true);
                 _logicalType.__set_INTEGER(_logicalType.INTEGER);
                 break;
             case ConvertedType::INT_64:
-                _logicalType.INTEGER.__set_bitWidth(64);
+                _logicalType.INTEGER.__set_bitWidth(BITWIDTH_64);
                 _logicalType.INTEGER.__set_isSigned(true);
                 _logicalType.__set_INTEGER(_logicalType.INTEGER);
                 break;
@@ -139,7 +144,6 @@ class Node {
     const Node* Parent() const {
         return _parent;
     }
-    // const std::shared_ptr<ColumnPath> path() const;
     bool EqualsInternal(const Node* other) const {
         return _type == other->_type && _name == other->_name && _repetition == other->_repetition && _convertedType == other->_convertedType;
     }
@@ -151,13 +155,13 @@ class Node {
 
     // Node::Visitor abstract class for walking schemas with the visitor pattern
     class Visitor {
-       public:
+    public:
         virtual ~Visitor() {}
 
         virtual void Visit(Node* node) = 0;
     };
     class ConstVisitor {
-       public:
+    public:
         virtual ~ConstVisitor() {}
 
         virtual void Visit(const Node* node) = 0;
@@ -166,7 +170,6 @@ class Node {
     virtual void Visit(Visitor* visitor) = 0;
     virtual void VisitConst(ConstVisitor* visitor) const = 0;
 
-    // PODStorage _pod;
     Node::type _type;
     std::string _name;
     Repetition::type _repetition;
@@ -301,7 +304,7 @@ struct SchemaElement {
 };
 
 class PrimitiveNode : public Node {
-   public:
+public:
     static inline NodePtr Make(const std::string& name, Repetition::type repetition, Type::type type, ConvertedType::type convertedType = ConvertedType::NONE,
                                size_t size = 0) {
         return NodePtr(new PrimitiveNode(name, repetition, type, convertedType, size));
@@ -321,7 +324,7 @@ class PrimitiveNode : public Node {
         if (!Node::EqualsInternal(other)) {
             return false;
         }
-        return EqualsInternal(static_cast<const PrimitiveNode*>(other));
+        return EqualsInternal(dynamic_cast<const PrimitiveNode*>(other));
     }
     void Visit(Node::Visitor* visitor) override {
         visitor->Visit(this);
@@ -355,7 +358,7 @@ class PrimitiveNode : public Node {
         _size = length;
     }
 
-   private:
+private:
     PrimitiveNode(const std::string& name, Repetition::type repetition, Type::type type, ConvertedType::type convertedType = ConvertedType::NONE,
                   size_t size = 0, int id = -1)
         : Node(Node::PRIMITIVE, name, repetition, convertedType, id), _type(type), _size(size) {}
@@ -365,7 +368,7 @@ class PrimitiveNode : public Node {
 };
 
 class GroupNode : public Node {
-   public:
+public:
     static inline NodePtr Make(const std::string& name, Repetition::type repetition, const NodeVector& fields,
                                ConvertedType::type convertedType = ConvertedType::NONE) {
         return NodePtr(new GroupNode(name, repetition, fields, convertedType));
@@ -415,7 +418,7 @@ class GroupNode : public Node {
         if (!Node::EqualsInternal(other)) {
             return false;
         }
-        return EqualsInternal(static_cast<const GroupNode*>(other));
+        return EqualsInternal(dynamic_cast<const GroupNode*>(other));
     }
 
     void ToParquet(void* opaque_element) const override {
@@ -434,7 +437,7 @@ class GroupNode : public Node {
         visitor->Visit(this);
     }
 
-   private:
+private:
     GroupNode(const std::string& name, Repetition::type repetition, const NodeVector& fields, ConvertedType::type convertedType = ConvertedType::NONE,
               int id = -1)
         : Node(Node::GROUP, name, repetition, convertedType, id), _fields(fields) {
@@ -443,7 +446,7 @@ class GroupNode : public Node {
         }
     }
 
-   private:
+private:
     NodeVector _fields;
     std::unordered_multimap<std::string, int> _fieldNameToIdx;
 };
@@ -453,7 +456,7 @@ typedef std::shared_ptr<GroupNode> ParquetSchema;
 // End Base Schema classes
 
 class SchemaVisitor : public Node::ConstVisitor {
-   public:
+public:
     explicit SchemaVisitor(std::vector<SchemaElement>* elements) : _elements(elements) {}
 
     void Visit(const Node* node) override {
@@ -462,19 +465,19 @@ class SchemaVisitor : public Node::ConstVisitor {
         _elements->push_back(element);
 
         if (node->IsGroup()) {
-            const GroupNode* group_node = static_cast<const GroupNode*>(node);
+            const GroupNode* group_node = dynamic_cast<const GroupNode*>(node);
             for (int i = 0; i < group_node->FieldCount(); ++i) {
                 group_node->Field(i)->VisitConst(this);
             }
         }
     }
 
-   private:
+private:
     std::vector<SchemaElement>* _elements;
 };
 
 class SchemaFlattener {
-   public:
+public:
     SchemaFlattener(const GroupNode* schema, std::vector<SchemaElement>* out) : _root(schema), _elements(out) {}
 
     void Flatten() {
@@ -482,12 +485,10 @@ class SchemaFlattener {
         _root->VisitConst(&visitor);
     }
 
-   private:
+private:
     const GroupNode* _root;
     std::vector<SchemaElement>* _elements;
 };
-
-// void PrintSchema(Node* schema, std::ostream& stream, int indent_width = 2);
 
 static void PrintRepLevel(Repetition::type repetition, std::ostream& stream) {
     switch (repetition) {
@@ -537,7 +538,7 @@ static void PrintType(const PrimitiveNode* node, std::ostream& stream) {
 }
 
 class SchemaBuilder : public Node::ConstVisitor {
-   public:
+public:
     explicit SchemaBuilder() {}
 
     void Visit(const Node* node) override {
@@ -559,48 +560,25 @@ class SchemaBuilder : public Node::ConstVisitor {
         return _schema;
     }
 
-   private:
+private:
     std::vector<SchemaElement> _schema;
 };
 
 class SchemaPrinter : public Node::ConstVisitor {
-   public:
+public:
     explicit SchemaPrinter(std::ostream& stream, int indent_width) : _stream(stream), _indent(0), _indentWidth(2) {}
 
     void Visit(const Node* node) override;
 
-   private:
+private:
     void Visit(const PrimitiveNode* node) {
         PrintRepLevel(node->GetRepetitionType(), _stream);
         _stream << " ";
         PrintType(node, _stream);
         _stream << " " << node->Name();
-        // PrintLogicalType(node, _stream);
         _stream << ";" << std::endl;
     }
     void Visit(const GroupNode* node) {}
-    //    if (!node->Parent()) {
-    //        _stream << "message " << node->Name() << " {" << std::endl;
-    //    } else {
-    //        PrintRepLevel(node->GetRepetitionType(), _stream);
-    //        _stream << " group " << node->Name();
-    //        auto lt = node->_convertedType;
-    //        auto la = node->_logicalType;
-    //        if (la && la->is_valid() && !la->is_none()) {
-    //          _stream << " (" << la->ToString() << ")";
-    //        } else if (lt != ConvertedType::NONE) {
-    //          _stream << " (" << ConvertedTypeToString(lt) << ")";
-    //        }
-    //        _stream << " {" << std::endl;
-    //    }
-    //    _indent += _indentWidth;
-    //    for (int i = 0; i < node->FieldCount(); ++i) {
-    //        node->Field(i)->VisitConst(this);
-    //    }
-    //    _indent -= _indentWidth;
-    //    Indent();
-    //    _stream << "}" << std::endl;
-    //}
 
     void Indent() {
         if (_indent > 0) {
@@ -615,8 +593,9 @@ class SchemaPrinter : public Node::ConstVisitor {
     int _indentWidth;
 };
 
+// Aux for FileMetaData
 class EncryptionAlgorithm {
-   public:
+public:
     EncryptionAlgorithm() {}
     virtual ~EncryptionAlgorithm() {}
     bool operator==(const EncryptionAlgorithm& rhs) const {
@@ -628,7 +607,7 @@ class EncryptionAlgorithm {
 };
 
 class SortingColumn {
-   public:
+public:
     SortingColumn() {}
     virtual ~SortingColumn() {}
     bool operator==(const SortingColumn& rhs) const {
@@ -640,7 +619,7 @@ class SortingColumn {
 };
 
 class RowGroup {
-   public:
+public:
     RowGroup() : _totalByteSize(0), _numRows(0), _fileOffset(0), _totalCompressedSize(0), _ordinal(0) {}
 
     virtual ~RowGroup() {}
@@ -718,7 +697,7 @@ class RowGroup {
 };
 
 class TypeDefinedOrder {
-   public:
+public:
     TypeDefinedOrder() {}
     virtual ~TypeDefinedOrder() {}
     bool operator==(const TypeDefinedOrder& rhs) const {
@@ -730,7 +709,7 @@ class TypeDefinedOrder {
 };
 
 class ColumnOrder {
-   public:
+public:
     ColumnOrder() {}
     virtual ~ColumnOrder() {}
 
@@ -756,7 +735,7 @@ class ColumnOrder {
 };
 
 class FileMetaData {
-   public:
+public:
     FileMetaData() : _version(0), _numRows(0), _createdBy(), _footerSigningKeyMetadata() {}
 
     virtual ~FileMetaData() {}
