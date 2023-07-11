@@ -3,8 +3,9 @@
 
 namespace clearParquet {
 
+// Aux for PageHeader
 class Statistics {
-   public:
+public:
     Statistics() : _max(), _min(), _nullCount(0), _distinctCount(0), _maxValue(), _minValue() {}
 
     virtual ~Statistics() {}
@@ -79,7 +80,7 @@ class Statistics {
     }
 };
 class IndexPageHeader {
-   public:
+public:
     IndexPageHeader() {}
 
     virtual ~IndexPageHeader() {}
@@ -92,7 +93,7 @@ class IndexPageHeader {
 };
 
 class DataPageHeader {
-   public:
+public:
     DataPageHeader() noexcept
         : _numValues(0),
           _encoding(static_cast<Encoding::type>(0)),
@@ -150,7 +151,7 @@ class DataPageHeader {
 };
 
 class DictionaryPageHeader {
-   public:
+public:
     DictionaryPageHeader() : _numValues(0), _encoding(static_cast<Encoding::type>(0)), _isSorted(0) {}
 
     virtual ~DictionaryPageHeader() {}
@@ -190,7 +191,7 @@ class DictionaryPageHeader {
 };
 
 class DataPageHeaderV2 {
-   public:
+public:
     DataPageHeaderV2()
         : _numValues(0),
           _numNulls(0),
@@ -275,7 +276,7 @@ class DataPageHeaderV2 {
 };
 
 class PageHeader {
-   public:
+public:
     PageHeader() : _type(static_cast<PageType::type>(0)), _uncompressedPageSize(0), _compressedPageSize(0), _crc(0) {}
 
     virtual ~PageHeader() {}

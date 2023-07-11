@@ -112,35 +112,6 @@ struct Repetition {
 };
 using FieldRepetitionType = Repetition;
 
-// struct FieldRepetitionType {
-//   enum type {
-//     REQUIRED = 0,
-//     OPTIONAL = 1,
-//     REPEATED = 2
-//   };
-// };
-
-typedef struct __attribute__((packed, aligned(4))) int96_t {
-    int32_t _value[3];
-} int96_t;
-
-typedef struct __attribute__((packed, aligned(4))) uint96_t {
-    uint32_t _value[3];
-} uint96_t;
-
-union __attribute__((packed, aligned(4))) PODStorage {
-    bool _bool;
-    int32_t _int32;
-    uint32_t _uint32;
-    int64_t _int64;
-    uint64_t _uint64;
-    int96_t _int96;
-    uint96_t _uint96;
-    float _float;
-    double _double;
-    char* _bytes;
-};
-
 static constexpr char PARQUET_MAGIC[4] = {'P', 'A', 'R', '1'};
 
 typedef struct _TimeUnit__isset {
@@ -151,7 +122,7 @@ typedef struct _TimeUnit__isset {
 } _TimeUnit__isset;
 
 class MilliSeconds {
-   public:
+public:
     MilliSeconds() {}
     virtual ~MilliSeconds() {}
     bool operator==(const MilliSeconds& /* rhs */) const {
@@ -162,7 +133,7 @@ class MilliSeconds {
     }
 };
 class MicroSeconds {
-   public:
+public:
     MicroSeconds() {}
     virtual ~MicroSeconds() {}
     bool operator==(const MicroSeconds& /* rhs */) const {
@@ -173,7 +144,7 @@ class MicroSeconds {
     }
 };
 class NanoSeconds {
-   public:
+public:
     NanoSeconds() {}
     virtual ~NanoSeconds() {}
     bool operator==(const NanoSeconds& /* rhs */) const {
@@ -185,7 +156,7 @@ class NanoSeconds {
 };
 
 class TimeUnit {
-   public:
+public:
     TimeUnit() {}
     virtual ~TimeUnit() {}
 
@@ -229,7 +200,7 @@ class TimeUnit {
 };
 
 class StringType {
-   public:
+public:
     StringType() {}
     virtual ~StringType() {}
     bool operator==(const StringType& /* rhs */) const {
@@ -241,7 +212,7 @@ class StringType {
 };
 
 class MapType {
-   public:
+public:
     MapType() {}
     virtual ~MapType() {}
     bool operator==(const MapType& /* rhs */) const {
@@ -253,7 +224,7 @@ class MapType {
 };
 
 class ListType {
-   public:
+public:
     ListType() {}
     virtual ~ListType() {}
     bool operator==(const ListType& /* rhs */) const {
@@ -265,7 +236,7 @@ class ListType {
 };
 
 class EnumType {
-   public:
+public:
     EnumType() {}
     virtual ~EnumType() {}
     bool operator==(const EnumType& /* rhs */) const {
@@ -277,7 +248,7 @@ class EnumType {
 };
 
 class DecimalType {
-   public:
+public:
     DecimalType() : _scale(0), _precision(0) {}
     virtual ~DecimalType() {}
 
@@ -305,7 +276,7 @@ class DecimalType {
 };
 
 class DateType {
-   public:
+public:
     DateType() {}
     virtual ~DateType() {}
     bool operator==(const DateType& /* rhs */) const {
@@ -317,7 +288,7 @@ class DateType {
 };
 
 class TimeType {
-   public:
+public:
     TimeType() : _isAdjustedToUTC(0) {}
     virtual ~TimeType() {}
     bool _isAdjustedToUTC;
@@ -344,7 +315,7 @@ class TimeType {
 };
 
 class TimestampType {
-   public:
+public:
     TimestampType() : _isAdjustedToUTC(0) {}
     virtual ~TimestampType() {}
     bool _isAdjustedToUTC;
@@ -371,7 +342,7 @@ class TimestampType {
 };
 
 class IntType {
-   public:
+public:
     IntType() : _bitWidth(0), _isSigned(0) {}
     virtual ~IntType() {}
     int8_t _bitWidth;
@@ -398,7 +369,7 @@ class IntType {
 };
 
 class NullType {
-   public:
+public:
     NullType() {}
     virtual ~NullType() {}
     bool operator==(const NullType& /* rhs */) const {
@@ -410,7 +381,7 @@ class NullType {
 };
 
 class JsonType {
-   public:
+public:
     JsonType() {}
     virtual ~JsonType() {}
     bool operator==(const JsonType& /* rhs */) const {
@@ -422,7 +393,7 @@ class JsonType {
 };
 
 class BsonType {
-   public:
+public:
     BsonType() {}
     virtual ~BsonType() {}
     bool operator==(const BsonType& /* rhs */) const {
@@ -434,7 +405,7 @@ class BsonType {
 };
 
 class UUIDType {
-   public:
+public:
     UUIDType() {}
     virtual ~UUIDType() {}
     bool operator==(const UUIDType& /* rhs */) const {
@@ -476,7 +447,7 @@ typedef struct _LogicalType__isset {
 } _LogicalType__isset;
 
 class LogicalType {
-   public:
+public:
     LogicalType() {}
 
     virtual ~LogicalType() {}

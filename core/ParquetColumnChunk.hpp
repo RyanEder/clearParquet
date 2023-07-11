@@ -8,8 +8,9 @@
 
 namespace clearParquet {
 
+// Aux for ColumnChunk
 class KeyValue {
-   public:
+public:
     KeyValue() : _key(), _value() {}
 
     virtual ~KeyValue() {}
@@ -42,7 +43,7 @@ class KeyValue {
 };
 
 class PageEncodingStats {
-   public:
+public:
     PageEncodingStats() : _pageType(static_cast<PageType::type>(0)), _encoding(static_cast<Encoding::type>(0)), _count(0) {}
 
     virtual ~PageEncodingStats() {}
@@ -78,7 +79,7 @@ class PageEncodingStats {
 };
 
 class ColumnMetaData {
-   public:
+public:
     ColumnMetaData()
         : _type(static_cast<Type::type>(0)),
           _codec(static_cast<CompressionCodec::type>(0)),
@@ -219,7 +220,7 @@ class ColumnMetaData {
 };
 
 class EncryptionWithFooterKey {
-   public:
+public:
     EncryptionWithFooterKey() {}
     virtual ~EncryptionWithFooterKey() {}
 
@@ -232,7 +233,7 @@ class EncryptionWithFooterKey {
 };
 
 class EncryptionWithColumnKey {
-   public:
+public:
     EncryptionWithColumnKey() : _keyMetadata() {}
 
     virtual ~EncryptionWithColumnKey() {}
@@ -265,7 +266,7 @@ class EncryptionWithColumnKey {
 };
 
 class ColumnCryptoMetaData {
-   public:
+public:
     ColumnCryptoMetaData() {}
     virtual ~ColumnCryptoMetaData() {}
 
@@ -301,7 +302,7 @@ class ColumnCryptoMetaData {
 };
 
 class ColumnChunk {
-   public:
+public:
     ColumnChunk()
         : _filePath(), _fileOffset(0), _offsetIndexOffset(0), _offsetIndexLength(0), _columnIndexOffset(0), _columnIndexLength(0), _encryptedColumnMetadata() {}
 

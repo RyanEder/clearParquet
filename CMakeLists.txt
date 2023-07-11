@@ -26,10 +26,10 @@ add_subdirectory(core)
 # Tests
 file(GLOB_RECURSE WRITER_TEST_SOURCES
         RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_SOURCE_DIR}/test/*.cpp)
+        ${CMAKE_SOURCE_DIR}/test/writer.cpp)
 file(GLOB_RECURSE WRITER_TEST_HEADERS
         RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_SOURCE_DIR}/test/*.hpp)
+        ${CMAKE_SOURCE_DIR}/test/writer.hpp)
 
 set(ALL_WRITER_TEST_SOURCES ${WRITER_TEST_HEADERS} ${WRITER_TEST_SOURCES})
 set(ALL_WRITER_TEST_LIBRARIES clearParquet thrift)
@@ -38,4 +38,24 @@ target_link_libraries(writer ${ALL_WRITER_TEST_LIBRARIES})
 set_target_properties(writer PROPERTIES OUTPUT_NAME writer${BUILD_POSTFIX})
 set_target_properties(writer PROPERTIES LINKER_LANGUAGE CXX)
 
+# Clang format fixup
+add_custom_target(format COMMAND ${CMAKE_COMMAND} -E env clang-format -i ${CMAKE_SOURCE_DIR}/core/*.hpp)
 
+# Clang tidy check
+add_custom_target(tidy COMMAND ${CMAKE_COMMAND} -E env clang-tidy ${CMAKE_SOURCE_DIR}/core/*.hpp -extra-arg=-std=c++17)
+
+
+# Arrow Tests
+#file(GLOB_RECURSE ARROW_WRITER_TEST_SOURCES
+#        RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
+#        ${CMAKE_SOURCE_DIR}/test/arrowWriter.cpp)
+#file(GLOB_RECURSE ARROW_WRITER_TEST_HEADERS
+#        RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
+#        ${CMAKE_SOURCE_DIR}/test/arrowWriter.hpp)
+#
+#set(ALL_ARROW_WRITER_TEST_SOURCES ${ARROW_WRITER_TEST_HEADERS} ${ARROW_WRITER_TEST_SOURCES})
+#set(ALL_ARROW_WRITER_TEST_LIBRARIES parquet arrow)
+#add_executable(arrowWriter ${ALL_ARROW_WRITER_TEST_SOURCES})
+#target_link_libraries(arrowWriter ${ALL_ARROW_WRITER_TEST_LIBRARIES})
+#set_target_properties(arrowWriter PROPERTIES OUTPUT_NAME arrowWriter${BUILD_POSTFIX})
+#set_target_properties(arrowWriter PROPERTIES LINKER_LANGUAGE CXX)
