@@ -95,10 +95,6 @@ public:
         _fileWriter->WriteBuffer(len, buffer);
     }
 
-    void WriteInt() {
-        WriteBuffer(8, (uint8_t*)&val);
-    }
-
     void EndRow() {
         _fileWriter->EndRow();
         if (_fileWriter->GetSize() >= _maxRowGroupSize) {

@@ -346,7 +346,7 @@ public:
         if (_logicalType.__is_set()) {
             element->__set_logical_type(_logicalType);
         }
-        // Decimals stuff.
+        // Decimals stuff, not implemented.
     }
     size_t TypeLength() const {
         return _size;
