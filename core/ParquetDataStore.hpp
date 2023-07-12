@@ -38,7 +38,8 @@ public:
         }
     }
     std::vector<T>& Get() {
-        _col %= _columnCount;
+        // Get impliles a full and in-order traversal of the data structure.
+        // Wrapping after a full read.
         auto& vec = _store[_col];
         if (++_col % _columnCount == 0) {
             _col = 0;
@@ -47,11 +48,17 @@ public:
     }
 
     uint64_t GetSize() {
+        // sizeIndexer implies a full and in-order traversal of the data structure.
+        // Wrapping after getting all sizes.
         uint64_t size = _sizes[_sizeIndexer];
         if (++_sizeIndexer % _columnCount == 0) {
             _sizeIndexer = 0;
         }
         return size;
+    }
+
+    uint8_t GetSizeOf() {
+        return sizeof(T);
     }
 
     void Clear() {

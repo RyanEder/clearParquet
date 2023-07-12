@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <fstream>
 #include <iostream>
+#include <tuple>
 
 #include "ParquetDataStore.hpp"
 #include "ParquetFileOutputStream.hpp"
@@ -28,23 +29,43 @@ class ParquetFileWriter {
 
 public:
     ParquetFileWriter(const std::shared_ptr<FileOutputStream>& filename, ParquetSchema& schema, const std::shared_ptr<WriterProperties>& properties)
-        : _filename(filename), _schema(schema), _opened(true), _numRows(0), _totalRows(0), _cacheIndex(0), _createdBy(CREATED_BY) {
+        : _filename(filename),
+          _schema(schema),
+          _opened(true),
+          _numRows(0),
+          _totalRows(0),
+          _cacheIndex(0),
+          _createdBy(CREATED_BY),
+          _boolCols(nullptr),
+          _floatCols(nullptr),
+          _doubleCols(nullptr),
+          _int32Cols(nullptr),
+          _int64Cols(nullptr),
+          _strCols(nullptr) {
         // Open the file
         try {
             _file.open(filename->filename(), std::ios::out | std::ios::binary);
         } catch (...) {
-            std::cout << "Cannot open file." << filename->filename() << std::endl;
+            throw std::invalid_argument(std::string("Cannot open file: ") + filename->filename());
             _opened = false;
         }
         // Collect the schema for storage requirements
         SchemaBuilder builder;
         builder.Visit(_schema.get());
         _schemas = builder.GetSchemas();
+
+        // Column Schema starts at [1], need more than the single root node.
+        if (_schemas.size() <= 1) {
+            throw std::invalid_argument("Schema malformed, need at least one column when opening the FileWriter.");
+        }
+
+        // Count up each type of column
         uint32_t counts[(uint8_t)Type::NONE] = {0};
         for (uint32_t i = 0; i < _schemas.size() - 1; ++i) {
             const auto& element = _schemas[i + 1];
             counts[(uint8_t)element._type]++;
         }
+
         // Build out initial storage.
         for (uint8_t utype = 0; utype < (uint8_t)Type::NONE; ++utype) {
             if (counts[utype] > 0) {
@@ -60,7 +81,7 @@ public:
                         _int64Cols = std::make_shared<DataStore<int64_t>>(INITIAL_RESERVE_SIZE, counts[utype]);
                         break;
                     case Type::INT96:
-                        // Unsupported
+                        throw std::invalid_argument("Unsupported type: INT96");
                         break;
                     case Type::FLOAT:
                         _floatCols = std::make_shared<DataStore<float>>(INITIAL_RESERVE_SIZE, counts[utype]);
@@ -72,13 +93,14 @@ public:
                         _strCols = std::make_shared<DataStore<std::string>>(INITIAL_RESERVE_SIZE, counts[utype]);
                         break;
                     case Type::FIXED_LEN_BYTE_ARRAY:
-                        // Unsupported
+                        throw std::invalid_argument("Unsupported type: FIXED_LEN_BYTE_ARRAY");
                         break;
                     default:
                         break;
                 }
             }
         }
+        _allCols = {_boolCols, _int32Cols, _int64Cols, nullptr, _floatCols, _doubleCols, _strCols, nullptr, nullptr};
         // Write the beginning of the file
         StartFile();
     }
@@ -123,11 +145,15 @@ public:
         uint32_t outLength;
 
         _serializer.SerializeToBuffer(obj, &outLength, &outBuffer);
+        if (outLength == 0) {
+            throw std::length_error("Failed to serialize anything.");
+        }
         WriteBuffer(outLength, outBuffer, false);
         return static_cast<uint64_t>(outLength);
     }
 
     void WriteBuffer(uint32_t len, const uint8_t* buffer, bool shouldBuffer = true) {
+        // Fast store in a local buffer if possible, otherwise flush to disk.
         if (shouldBuffer) {
             if (_cacheIndex + len >= INTERNAL_BUFFER_SIZE) {
                 _file.write((const char*)_cacheBuffer, _cacheIndex);
@@ -153,39 +179,27 @@ public:
         _file.write(PARQUET_MAGIC, 4);
     }
 
+    template <typename T, typename F, std::size_t... I>
+    constexpr void visit_impl(T& tup, const size_t idx, F fun, std::index_sequence<I...>) {
+        ((I == idx ? fun(std::get<I>(tup)) : void()), ...);
+    }
+
+    template <typename F, typename... Ts, typename Indices = std::make_index_sequence<sizeof...(Ts)>>
+    constexpr void visit_at(std::tuple<Ts...>& tup, const size_t idx, F fun) {
+        visit_impl(tup, idx, fun, Indices{});
+    }
+
+    template <typename F, typename... Ts, typename Indices = std::make_index_sequence<sizeof...(Ts)>>
+    constexpr void visit_at(const std::tuple<Ts...>& tup, const size_t idx, F fun) {
+        visit_impl(tup, idx, fun, Indices{});
+    }
+
     uint64_t GetSize() {
         // Figure out data sizes
         uint64_t dataLen = 0;
         for (uint32_t i = 0; i < _schemas.size() - 1; ++i) {
             const auto& element = _schemas[i + 1];
-            switch (element._type) {
-                case Type::BOOLEAN:
-                    dataLen += _boolCols->GetSize();
-                    break;
-                case Type::INT32:
-                    dataLen += _int32Cols->GetSize();
-                    break;
-                case Type::INT64:
-                    dataLen += _int64Cols->GetSize();
-                    break;
-                case Type::INT96:
-                    // Unsupported
-                    break;
-                case Type::FLOAT:
-                    dataLen += _floatCols->GetSize();
-                    break;
-                case Type::DOUBLE:
-                    dataLen += _doubleCols->GetSize();
-                    break;
-                case Type::BYTE_ARRAY:
-                    dataLen += _strCols->GetSize();
-                    break;
-                case Type::FIXED_LEN_BYTE_ARRAY:
-                    // Unsupported
-                    break;
-                default:
-                    break;
-            }
+            visit_at(_allCols, (size_t)element._type, [&dataLen](auto&& arg) { dataLen += arg->GetSize(); });
         }
         return dataLen;
     }
@@ -195,34 +209,7 @@ public:
         _numRows = 0;
         for (uint32_t i = 0; i < _schemas.size() - 1; ++i) {
             const auto& element = _schemas[i + 1];
-            switch (element._type) {
-                case Type::BOOLEAN:
-                    _boolCols->Clear();
-                    break;
-                case Type::INT32:
-                    _int32Cols->Clear();
-                    break;
-                case Type::INT64:
-                    _int64Cols->Clear();
-                    break;
-                case Type::INT96:
-                    // Unsupported
-                    break;
-                case Type::FLOAT:
-                    _floatCols->Clear();
-                    break;
-                case Type::DOUBLE:
-                    _doubleCols->Clear();
-                    break;
-                case Type::BYTE_ARRAY:
-                    _strCols->Clear();
-                    break;
-                case Type::FIXED_LEN_BYTE_ARRAY:
-                    // Unsupported
-                    break;
-                default:
-                    break;
-            }
+            visit_at(_allCols, (size_t)element._type, [](auto&& arg) { arg->Clear(); });
         }
     }
 
@@ -235,39 +222,13 @@ public:
         _dataPageHeader.__set_definition_level_encoding(clearParquet::Encoding::RLE);
         _dataPageHeader.__set_repetition_level_encoding(clearParquet::Encoding::RLE);
         _dataPageHeader.__set_statistics(_stats);
+
         for (uint32_t i = 0; i < _schemas.size() - 1; ++i) {
             const auto& element = _schemas[i + 1];
             PageHeader header;
 
             uint32_t dataLen = 0;
-            switch (element._type) {
-                case Type::BOOLEAN:
-                    dataLen = _boolCols->GetSize();
-                    break;
-                case Type::INT32:
-                    dataLen = _int32Cols->GetSize();
-                    break;
-                case Type::INT64:
-                    dataLen = _int64Cols->GetSize();
-                    break;
-                case Type::INT96:
-                    // Unsupported
-                    break;
-                case Type::FLOAT:
-                    dataLen = _floatCols->GetSize();
-                    break;
-                case Type::DOUBLE:
-                    dataLen = _doubleCols->GetSize();
-                    break;
-                case Type::BYTE_ARRAY:
-                    dataLen = _strCols->GetSize();
-                    break;
-                case Type::FIXED_LEN_BYTE_ARRAY:
-                    // Unsupported
-                    break;
-                default:
-                    break;
-            }
+            visit_at(_allCols, (size_t)element._type, [&dataLen](auto&& arg) { dataLen = arg->GetSize(); });
             header.__set_compressed_page_size(dataLen);
             header.__set_uncompressed_page_size(dataLen);
             header.__set_data_page_header(_dataPageHeader);
@@ -296,47 +257,20 @@ public:
 
             rowBytes += dataLen + pageHeaderLen;
 
-            switch (element._type) {
-                case Type::BOOLEAN:
-                    for (const auto& val : _boolCols->Get()) {
-                        WriteBuffer(1, (const uint8_t*)&val);
+            // Strings are handled differently in parquet
+            if (element._type == Type::BYTE_ARRAY) {
+                for (const auto& str : _strCols->Get()) {
+                    uint32_t len = str.length();
+                    WriteBuffer(4, (const uint8_t*)&len);
+                    WriteBuffer(len, (const uint8_t*)str.c_str());
+                }
+            } else {  // Everything else follows this format
+                visit_at(_allCols, (size_t)element._type, [this](auto&& arg) {
+                    const auto& size = arg->GetSizeOf();
+                    for (const auto& val : arg->Get()) {
+                        WriteBuffer(size, (const uint8_t*)&val);
                     }
-                    break;
-                case Type::INT32:
-                    for (const auto& val : _int32Cols->Get()) {
-                        WriteBuffer(4, (const uint8_t*)&val);
-                    }
-                    break;
-                case Type::INT64:
-                    for (const auto& val : _int64Cols->Get()) {
-                        WriteBuffer(8, (const uint8_t*)&val);
-                    }
-                    break;
-                case Type::INT96:
-                    // Unsupported
-                    break;
-                case Type::FLOAT:
-                    for (const auto& val : _floatCols->Get()) {
-                        WriteBuffer(4, (const uint8_t*)&val);
-                    }
-                    break;
-                case Type::DOUBLE:
-                    for (const auto& val : _doubleCols->Get()) {
-                        WriteBuffer(8, (const uint8_t*)&val);
-                    }
-                    break;
-                case Type::BYTE_ARRAY:
-                    for (const auto& str : _strCols->Get()) {
-                        uint32_t len = str.length();
-                        WriteBuffer(4, (const uint8_t*)&len);
-                        WriteBuffer(len, (const uint8_t*)str.c_str());
-                    }
-                    break;
-                case Type::FIXED_LEN_BYTE_ARRAY:
-                    // Unsupported
-                    break;
-                default:
-                    break;
+                });
             }
             SerializeAndWrite(&chunk);
         }
@@ -367,6 +301,8 @@ public:
             EndRowGroup();
             FinishFileMetaData();
             WriteFileMetaData();
+        } else {
+            throw std::runtime_error("Cannot EndFile and close an unopened file.");
         }
     }
 
@@ -411,6 +347,10 @@ public:
     std::shared_ptr<DataStore<int32_t>> _int32Cols;
     std::shared_ptr<DataStore<int64_t>> _int64Cols;
     std::shared_ptr<DataStore<std::string>> _strCols;
+    std::tuple<std::shared_ptr<DataStore<bool>>, std::shared_ptr<DataStore<int32_t>>, std::shared_ptr<DataStore<int64_t>>, std::shared_ptr<DataStore<char>>,
+               std::shared_ptr<DataStore<float>>, std::shared_ptr<DataStore<double>>, std::shared_ptr<DataStore<std::string>>, std::shared_ptr<DataStore<char>>,
+               std::shared_ptr<DataStore<char>>>
+        _allCols;
 };
 
 }  // end namespace clearParquet
