@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
     auto schema = std::static_pointer_cast<parquet::schema::GroupNode>(parquet::schema::GroupNode::Make("schema", parquet::Repetition::REQUIRED, columnNames));
 
     parquet::WriterProperties::Builder builder;
-    builder.compression(parquet::Compression::UNCOMPRESSED);
+    builder.compression(parquet::Compression::ZSTD);
     //builder.enable_dictionary();
     builder.disable_dictionary();
     builder.disable_statistics();
@@ -43,8 +43,8 @@ int main(int argc, char **argv) {
 
     std::string saveStateReason = "SaveStateReasonData";
     uint64_t a = 0xffffffff;
-    uint64_t b = 0xaaaaaaaa
-    for (int i = 0; i < numRows; ++i) {
+    uint64_t b = 0xaaaaaaaa;
+    for (uint32_t i = 0; i < numRows; ++i) {
         writer << a-- << saveStateReason.c_str() << b++ << saveStateReason.c_str() << parquet::EndRow;
     }
 

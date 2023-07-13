@@ -16,6 +16,9 @@ public:
         }
 
         void compression(Compression::type compression) {
+            if (compression != Compression::UNCOMPRESSED) {
+                throw std::invalid_argument("Support for anything but Compression::UNCOMPRESSED is unsupported.");
+            }
             _compression = compression;
         }
 
