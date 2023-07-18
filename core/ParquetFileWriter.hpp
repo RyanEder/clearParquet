@@ -4,6 +4,13 @@
 #include <iostream>
 #include <tuple>
 
+#if defined(PARQUET_SNAPPY_COMPRESSION)
+#include <snappy.h>
+#endif
+#if defined(PARQUET_ZSTD_COMPRESSION)
+#include <zstd.h>
+#endif
+
 #include "ParquetDataStore.hpp"
 #include "ParquetFileOutputStream.hpp"
 #include "ParquetSchema.hpp"
@@ -11,7 +18,8 @@
 #include "ParquetWriterProperties.hpp"
 
 namespace clearParquet {
-constexpr size_t INTERNAL_BUFFER_SIZE = 10LL * 1024LL * 1024LL;
+constexpr size_t DEFAULT_ROW_SIZE = 1LL * 1024LL * 1024LL;  // 1MB
+constexpr size_t INTERNAL_BUFFER_SIZE = DEFAULT_ROW_SIZE * 2;
 constexpr size_t INITIAL_RESERVE_SIZE = 1024LL * 1024LL;
 constexpr std::string_view CREATED_BY = "clearParquet version 1.0.0";
 
@@ -34,8 +42,17 @@ public:
           _opened(true),
           _numRows(0),
           _totalRows(0),
+          _cacheBuffer(nullptr),
+          _compressBuffer(nullptr),
+          _cacheBufferSize(INTERNAL_BUFFER_SIZE),
+          _compressBufferSize(0),
           _cacheIndex(0),
           _createdBy(CREATED_BY),
+          _properties(properties),
+#if defined(PARQUET_ZSTD_COMPRESSION)
+          _cctx(nullptr),
+#endif
+          _maxRowGroupSize(DEFAULT_ROW_SIZE),
           _boolCols(nullptr),
           _floatCols(nullptr),
           _doubleCols(nullptr),
@@ -103,7 +120,31 @@ public:
         _allCols = {_boolCols, _int32Cols, _int64Cols, nullptr, _floatCols, _doubleCols, _strCols, nullptr, nullptr};
         // Write the beginning of the file
         StartFile();
+
+        _cacheBuffer = new char[_cacheBufferSize];
+        _compressBuffer = new char[_cacheBufferSize];
+#if defined(PARQUET_ZSTD_COMPRESSION)
+        _cctx = ZSTD_createCCtx();
+        if (_cctx == nullptr) {
+            throw std::runtime_error("Could not create the ZSTD context.");
+        }
+#endif
     }
+
+    void SetMaxRowGroupSize(uint64_t rowsize) {
+        _maxRowGroupSize = rowsize;
+        _cacheBufferSize = _maxRowGroupSize * 2;
+        if (_cacheBuffer != nullptr) {
+            delete _cacheBuffer;
+        }
+        if (_compressBuffer != nullptr) {
+            delete _compressBuffer;
+        }
+
+        _cacheBuffer = new char[_cacheBufferSize];
+        _compressBuffer = new char[_cacheBufferSize];
+    }
+
     ~ParquetFileWriter() {
         EndFile();
         try {
@@ -111,6 +152,17 @@ public:
                 _file.close();
             }
         } catch (...) {}
+        if (_cacheBuffer != nullptr) {
+            delete _cacheBuffer;
+        }
+        if (_compressBuffer != nullptr) {
+            delete _compressBuffer;
+        }
+#if defined(PARQUET_ZSTD_COMPRESSION)
+        if (_cctx != nullptr) {
+            ZSTD_freeCCtx(_cctx);
+        }
+#endif
     }
 
     void StartFile() {
@@ -148,26 +200,53 @@ public:
         if (outLength == 0) {
             throw std::length_error("Failed to serialize anything.");
         }
-        WriteBuffer(outLength, outBuffer, false);
+        _file.write((const char*)outBuffer, outLength);
         return static_cast<uint64_t>(outLength);
     }
 
-    void WriteBuffer(uint32_t len, const uint8_t* buffer, bool shouldBuffer = true) {
-        // Fast store in a local buffer if possible, otherwise flush to disk.
-        if (shouldBuffer) {
-            if (_cacheIndex + len >= INTERNAL_BUFFER_SIZE) {
-                _file.write((const char*)_cacheBuffer, _cacheIndex);
-                _cacheIndex = 0;
+    // Compression
+    void CompressData() {
+        _compressBufferSize = 0;
+        if (_cacheIndex > 0) {
+#if defined(PARQUET_ZSTD_COMPRESSION)
+            if (_properties->getCompression() == Compression::ZSTD) {
+                _compressBufferSize = ZSTD_compressCCtx(_cctx, _compressBuffer, _cacheBufferSize, _cacheBuffer, _cacheIndex, 1);
+#if defined(PARQUET_SNAPPY_COMPRESSION)
+            } else if (_properties->getCompression() == Compression::SNAPPY) {
+                snappy::RawCompress(_cacheBuffer, _cacheIndex, _compressBuffer, &_compressBufferSize);
+#endif
             }
-            memcpy(_cacheBuffer + _cacheIndex, buffer, len);
-            _cacheIndex += len;
-        } else {
-            if (_cacheIndex > 0) {
-                _file.write((const char*)_cacheBuffer, _cacheIndex);
-                _cacheIndex = 0;
+#endif
+#if defined(PARQUET_SNAPPY_COMPRESSION) && !defined(PARQUET_ZSTD_COMPRESSION)  // That pesky else condition above when both are defined.
+            if (_properties->getCompression() == Compression::SNAPPY) {
+                snappy::RawCompress(_cacheBuffer, _cacheIndex, _compressBuffer, &_compressBufferSize);
             }
-            _file.write((const char*)buffer, len);
+#endif
+
+            if (_compressBufferSize > 0) {
+                _cacheIndex = 0;
+            } else {
+                throw std::runtime_error("Failed to compress buffer.");
+            }
         }
+    }
+
+    void WriteCacheBuffer() {
+        if (_cacheIndex > 0) {
+            _file.write((const char*)_cacheBuffer, _cacheIndex);
+            _cacheIndex = 0;
+        } else if (_compressBufferSize > 0) {
+            _file.write((const char*)_compressBuffer, _compressBufferSize);
+            _compressBufferSize = 0;
+        }
+    }
+
+    void CacheBuffer(uint32_t len, const uint8_t* buffer) {
+        if (_cacheIndex + len >= _cacheBufferSize) {
+            throw std::runtime_error("Not enough space in the buffer cache.");
+        }
+        memcpy(_cacheBuffer + _cacheIndex, buffer, len);
+        _cacheIndex += len;
     }
 
     void WriteFileMetaData() {
@@ -217,19 +296,43 @@ public:
         // Figure and write a row group of column chunks
         uint32_t initialOffset = static_cast<uint32_t>(_file.tellg());
         uint64_t rowBytes = 0;
+        uint64_t rowBytesCompressed = 0;
 
         _dataPageHeader.__set_num_values(_numRows);
         _dataPageHeader.__set_definition_level_encoding(clearParquet::Encoding::RLE);
         _dataPageHeader.__set_repetition_level_encoding(clearParquet::Encoding::RLE);
         _dataPageHeader.__set_statistics(_stats);
 
+        bool shouldCompress = _properties->getCompression() != Compression::UNCOMPRESSED;
+        // Build the data buffers first for sizing
         for (uint32_t i = 0; i < _schemas.size() - 1; ++i) {
             const auto& element = _schemas[i + 1];
+
+            // Strings are handled differently in parquet
+            if (element._type == Type::BYTE_ARRAY) {
+                for (const auto& str : _strCols->Get()) {
+                    uint32_t len = str.length();
+                    CacheBuffer(4, (const uint8_t*)&len);
+                    CacheBuffer(len, (const uint8_t*)str.c_str());
+                }
+            } else {  // Everything else follows this format
+                visit_at(_allCols, (size_t)element._type, [this](auto&& arg) {
+                    const auto& size = arg->GetSizeOf();
+                    for (const auto& val : arg->Get()) {
+                        CacheBuffer(size, (const uint8_t*)&val);
+                    }
+                });
+            }
+
+            if (shouldCompress)
+                CompressData();
+
             PageHeader header;
 
             uint32_t dataLen = 0;
             visit_at(_allCols, (size_t)element._type, [&dataLen](auto&& arg) { dataLen = arg->GetSize(); });
-            header.__set_compressed_page_size(dataLen);
+            uint32_t compressedDataLen = (shouldCompress) ? _compressBufferSize : dataLen;
+            header.__set_compressed_page_size(compressedDataLen);
             header.__set_uncompressed_page_size(dataLen);
             header.__set_data_page_header(_dataPageHeader);
             // Write Header
@@ -242,36 +345,23 @@ public:
             std::vector<std::string> pathInSchema;
             pathInSchema.push_back(element._name);
 
-            chunk.__set_file_offset(dataLen + pageHeaderLen + dataPageOffset);
+            chunk.__set_file_offset(compressedDataLen + pageHeaderLen + dataPageOffset);
             cmd.__set_type(element._type);
             cmd.__set_encodings(_encodings);
             cmd.__set_path_in_schema(pathInSchema);
-            cmd.__set_codec(CompressionCodec::UNCOMPRESSED);
+            cmd.__set_codec(CompressionConvert(_properties->getCompression()));
             cmd.__set_num_values(_numRows);
             cmd.__set_total_uncompressed_size(dataLen + pageHeaderLen);
-            cmd.__set_total_compressed_size(dataLen + pageHeaderLen);
+            cmd.__set_total_compressed_size(compressedDataLen + pageHeaderLen);
             cmd.__set_data_page_offset(dataPageOffset);
             cmd.__set_encoding_stats(_pageEncodings);
             chunk.__set_meta_data(cmd);
             _columnChunks.push_back(chunk);
 
             rowBytes += dataLen + pageHeaderLen;
+            rowBytesCompressed += compressedDataLen + pageHeaderLen;
 
-            // Strings are handled differently in parquet
-            if (element._type == Type::BYTE_ARRAY) {
-                for (const auto& str : _strCols->Get()) {
-                    uint32_t len = str.length();
-                    WriteBuffer(4, (const uint8_t*)&len);
-                    WriteBuffer(len, (const uint8_t*)str.c_str());
-                }
-            } else {  // Everything else follows this format
-                visit_at(_allCols, (size_t)element._type, [this](auto&& arg) {
-                    const auto& size = arg->GetSizeOf();
-                    for (const auto& val : arg->Get()) {
-                        WriteBuffer(size, (const uint8_t*)&val);
-                    }
-                });
-            }
+            WriteCacheBuffer();
             SerializeAndWrite(&chunk);
         }
         RowGroup row_group;
@@ -279,7 +369,7 @@ public:
         row_group.__set_total_byte_size(rowBytes);
         row_group.__set_num_rows(_numRows);
         row_group.__set_file_offset(initialOffset);
-        row_group.__set_total_compressed_size(rowBytes);
+        row_group.__set_total_compressed_size(rowBytesCompressed);
         row_group.__set_ordinal(_rowGroups.size());
         _rowGroups.push_back(row_group);
 
@@ -334,11 +424,19 @@ private:
 
     std::vector<Encoding::type> _encodings;
 
-    char _cacheBuffer[INTERNAL_BUFFER_SIZE];
+    char* _cacheBuffer;
+    char* _compressBuffer;
+    size_t _cacheBufferSize;
+    size_t _compressBufferSize;
     uint64_t _cacheIndex;
     Statistics _stats;
     DataPageHeader _dataPageHeader;
     std::string _createdBy;
+    std::shared_ptr<WriterProperties> _properties;
+#if defined(PARQUET_ZSTD_COMPRESSION)
+    ZSTD_CCtx* _cctx;
+#endif
+    uint64_t _maxRowGroupSize;
 
 public:
     std::shared_ptr<DataStore<bool>> _boolCols;

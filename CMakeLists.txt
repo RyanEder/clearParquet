@@ -22,6 +22,29 @@ message(STATUS ${thrift_location})
 add_library(thrift STATIC IMPORTED)
 set_target_properties(thrift PROPERTIES IMPORTED_LOCATION ${thrift_location})
 
+# ZSTD
+find_library(zstd_location NAMES libzstd.a)
+message(STATUS ${zstd_location})
+if(NOT zstd_location)
+    message("-- Disabling ZSTD options in code.")
+else()
+    message("-- Enabling ZSTD options in code.")
+    add_definitions(-DPARQUET_ZSTD_COMPRESSION=1)
+    add_library(zstd STATIC IMPORTED)
+    set_target_properties(zstd PROPERTIES IMPORTED_LOCATION ${zstd_location})
+endif()
+
+# SNAPPY
+find_library(snappy_location NAMES libsnappy.a)
+message(STATUS ${snappy_location})
+if(NOT snappy_location)
+    message("-- Disabling SNAPPY options in code.")
+else()
+    message("-- Enabling SNAPPY options in code.")
+    add_definitions(-DPARQUET_SNAPPY_COMPRESSION=1)
+    add_library(snappy STATIC IMPORTED)
+    set_target_properties(snappy PROPERTIES IMPORTED_LOCATION ${snappy_location})
+endif()
 
 add_subdirectory(core)
 
@@ -35,6 +58,12 @@ file(GLOB_RECURSE WRITER_TEST_HEADERS
 
 set(ALL_WRITER_TEST_SOURCES ${WRITER_TEST_HEADERS} ${WRITER_TEST_SOURCES})
 set(ALL_WRITER_TEST_LIBRARIES clearParquet thrift)
+if(zstd_location)
+    set(ALL_WRITER_TEST_LIBRARIES ${ALL_WRITER_TEST_LIBRARIES} zstd)
+endif()
+if(snappy_location)
+    set(ALL_WRITER_TEST_LIBRARIES ${ALL_WRITER_TEST_LIBRARIES} snappy)
+endif()
 add_executable(writer ${ALL_WRITER_TEST_SOURCES})
 target_link_libraries(writer ${ALL_WRITER_TEST_LIBRARIES})
 set_target_properties(writer PROPERTIES OUTPUT_NAME writer${BUILD_POSTFIX})

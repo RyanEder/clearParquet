@@ -9,7 +9,7 @@
 
 int main(int argc, char **argv) {
     uint32_t numRows = 1000;
-    if (argc == 2) {
+    if (argc >= 2) {
         numRows = atoi(argv[1]);
     }
 
@@ -28,8 +28,19 @@ int main(int argc, char **argv) {
     auto schema = std::static_pointer_cast<clearParquet::GroupNode>(clearParquet::GroupNode::Make("schema", clearParquet::Repetition::REQUIRED, columnNames));
 
     clearParquet::WriterProperties::Builder builder;
-    //builder.compression(clearParquet::Compression::SNAPPY);
-    builder.compression(clearParquet::Compression::UNCOMPRESSED);
+    if (argc <= 2) {
+        builder.compression(clearParquet::Compression::UNCOMPRESSED);
+    } else if (atoi(argv[2]) == 1) {
+        builder.compression(clearParquet::Compression::SNAPPY);
+    } else if (atoi(argv[2]) == 2) {
+        builder.compression(clearParquet::Compression::ZSTD);
+    } else {
+        builder.compression(clearParquet::Compression::UNCOMPRESSED);
+    }
+
+    builder.disable_dictionary();
+    builder.disable_statistics();
+    builder.disable_page_checksum();
 
     std::unique_ptr<clearParquet::ParquetFileWriter> fwriter = clearParquet::ParquetFileWriter::Open(outfile, schema, builder.build());
 
