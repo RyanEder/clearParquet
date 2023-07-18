@@ -6,8 +6,6 @@
 #include <string_view>
 
 namespace clearParquet {
-constexpr size_t DEFAULT_ROW_SIZE = 1LL * 1024LL * 1024LL;  // 1MB
-
 class StreamWriter {
 public:
     StreamWriter() = default;
@@ -91,9 +89,6 @@ public:
     void SerializeAndWrite(const T* obj) {
         _fileWriter->SerializeAndWrite(obj);
     }
-    void WriteBuffer(uint32_t len, const uint8_t* buffer) {
-        _fileWriter->WriteBuffer(len, buffer);
-    }
 
     void EndRow() {
         _fileWriter->EndRow();
@@ -108,6 +103,7 @@ public:
 
     void SetMaxRowGroupSize(uint64_t rowsize) {
         _maxRowGroupSize = rowsize;
+        _fileWriter->SetMaxRowGroupSize(rowsize);
     }
 
 private:

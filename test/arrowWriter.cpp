@@ -8,7 +8,7 @@
 
 int main(int argc, char **argv) {
     uint32_t numRows = 1000;
-    if (argc == 2) {
+    if (argc >= 2) {
         numRows = atoi(argv[1]);
     }
 
@@ -29,8 +29,16 @@ int main(int argc, char **argv) {
     auto schema = std::static_pointer_cast<parquet::schema::GroupNode>(parquet::schema::GroupNode::Make("schema", parquet::Repetition::REQUIRED, columnNames));
 
     parquet::WriterProperties::Builder builder;
-    builder.compression(parquet::Compression::ZSTD);
-    //builder.enable_dictionary();
+    if (argc <= 2) {
+        builder.compression(parquet::Compression::UNCOMPRESSED);
+    } else if (atoi(argv[2]) == 1) {
+        builder.compression(parquet::Compression::SNAPPY);
+    } else if (atoi(argv[2]) == 2) {
+        builder.compression(parquet::Compression::ZSTD);
+    } else {
+        builder.compression(parquet::Compression::UNCOMPRESSED);
+    }
+
     builder.disable_dictionary();
     builder.disable_statistics();
     builder.disable_page_checksum();
@@ -39,7 +47,7 @@ int main(int argc, char **argv) {
 
     parquet::StreamWriter writer = parquet::StreamWriter { std::move(fwriter) };
 
-    writer.SetMaxRowGroupSize(1ll*1024ll*1024ll);
+    writer.SetMaxRowGroupSize(10ll*1024ll*1024ll);
 
     std::string saveStateReason = "SaveStateReasonData";
     uint64_t a = 0xffffffff;
