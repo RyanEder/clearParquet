@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
 project(clearParquet)
 
-set(CXX_STD_FLAGS "-std=c++17")
+set(CMAKE_CXX_STANDARD 17)
 set(CXX_GROUPED_WARNING_FLAGS "-Werror -Wall -Wextra -Wno-ignored-qualifiers -Wno-unused-parameter -pedantic")
 set(CXX_SPECIFIC_WARNING_FLAGS "-Wcast-align -Wcast-qual -Winit-self -Wlogical-op -Wunknown-pragmas -Wwrite-strings -Wno-deprecated-copy -Wno-pessimizing-move -Wno-implicit-fallthrough -Wno-stringop-truncation -Wno-unknown-pragmas -Wsuggest-override -Wcast-qual -Wtautological-compare")
 set(CMAKE_CXX_FLAGS "${CXX_STD_FLAGS} ${CXX_GROUPED_WARNING_FLAGS} ${CXX_SPECIFIC_WARNING_FLAGS}")
