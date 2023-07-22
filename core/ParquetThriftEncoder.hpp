@@ -33,13 +33,9 @@ public:
         writeFieldBegin("", (value == 0) ? ThriftFieldType::T_BOOL_FALSE : ThriftFieldType::T_BOOL, _boolFieldId);
     }
 
-    void writeByteDirect(uint8_t value) {
-        _buffer.push_back(static_cast<uint8_t>(value));
-    }
     // Serialize a byte (uint8_t) into a byte stream using Compact Protocol.
     void writeByte(uint8_t value) {
-        writeByteDirect(value);
-        //_buffer.push_back(static_cast<uint8_t>((static_cast<uint32_t>(ThriftFieldType::T_BYTE) << 4) | (value & 0x0F)));
+        _buffer.push_back(static_cast<uint8_t>(value));
     }
 
     // Serialize an int16_t into a byte stream using Compact Protocol.
@@ -70,15 +66,14 @@ public:
     void writeListEnd() {}
     void writeListBegin(ThriftFieldType fieldType, uint32_t count) {
         if (count <= 14) {
-            writeByteDirect(count << 4 | static_cast<uint32_t>(fieldType));
-            // writeByteDirect(static_cast<uint8_t>count
+            writeByte(count << 4 | static_cast<uint32_t>(fieldType));
         } else {
             writeByte(0xf0 | static_cast<uint32_t>(fieldType));
             writeVarint(count);
         }
     }
     void writeFieldStop() {
-        writeByteDirect(static_cast<uint8_t>(ThriftFieldType::T_STOP));
+        writeByte(static_cast<uint8_t>(ThriftFieldType::T_STOP));
     }  // write stop bit
 
     void writeFieldBegin(const std::string& /*name*/, ThriftFieldType fieldType, int16_t fieldId) {
@@ -91,7 +86,7 @@ public:
         int8_t fieldTypeByte = static_cast<int8_t>(fieldType);
 
         if (fieldDelta >= -15 && fieldDelta <= 15) {
-            writeByteDirect(static_cast<uint8_t>((static_cast<uint16_t>(fieldDelta) << 4) | fieldTypeByte));
+            writeByte(static_cast<uint8_t>((static_cast<uint16_t>(fieldDelta) << 4) | fieldTypeByte));
         } else {
             writeByte(static_cast<uint8_t>(fieldTypeByte));
             writeVarint(static_cast<int32_t>(fieldDelta));
