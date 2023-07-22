@@ -193,8 +193,8 @@ public:
 
     template <class T>
     int64_t SerializeAndWrite(const T* obj) {
-        uint8_t* outBuffer;
-        uint32_t outLength;
+        uint8_t* outBuffer = nullptr;
+        uint32_t outLength = 0;
 
         _serializer.SerializeToBuffer(obj, &outLength, &outBuffer);
         if (outLength == 0) {
