@@ -24,6 +24,10 @@ int main(int argc, char **argv) {
                                                             clearParquet::ConvertedType::UINT_64));
     columnNames.push_back(clearParquet::PrimitiveNode::Make("SaveStateReasonabcd", clearParquet::Repetition::REQUIRED, clearParquet::Type::BYTE_ARRAY,
                                                             clearParquet::ConvertedType::UTF8));
+    columnNames.push_back(clearParquet::PrimitiveNode::Make("SomeBool", clearParquet::Repetition::REQUIRED, clearParquet::Type::BOOLEAN,
+                                                            clearParquet::ConvertedType::NONE));
+    columnNames.push_back(clearParquet::PrimitiveNode::Make("SomeBoolAlso", clearParquet::Repetition::REQUIRED, clearParquet::Type::BOOLEAN,
+                                                            clearParquet::ConvertedType::NONE));
 
     auto schema = std::static_pointer_cast<clearParquet::GroupNode>(clearParquet::GroupNode::Make("schema", clearParquet::Repetition::REQUIRED, columnNames));
 
@@ -52,7 +56,7 @@ int main(int argc, char **argv) {
     uint64_t a = 0xffffffff;
     uint64_t b = 0xaaaaaaaa;
     for (uint32_t i = 0; i < numRows; ++i) {
-        writer << a-- << saveStateReason.c_str() << b++ << saveStateReason.c_str() << clearParquet::EndRow;
+        writer << a-- << saveStateReason.c_str() << b++ << saveStateReason.c_str() << false << true << clearParquet::EndRow;
     }
 
     return 0;

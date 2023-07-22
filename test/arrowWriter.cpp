@@ -24,6 +24,8 @@ int main(int argc, char **argv) {
     columnNames.push_back(parquet::schema::PrimitiveNode::Make("SaveStateReason", parquet::Repetition::REQUIRED, parquet::Type::BYTE_ARRAY, parquet::ConvertedType::UTF8));
     columnNames.push_back(parquet::schema::PrimitiveNode::Make("AnotherTimestamp", parquet::Repetition::REQUIRED, parquet::Type::INT64, parquet::ConvertedType::UINT_64));
     columnNames.push_back(parquet::schema::PrimitiveNode::Make("SaveStateReasonabcd", parquet::Repetition::REQUIRED, parquet::Type::BYTE_ARRAY, parquet::ConvertedType::UTF8));
+    columnNames.push_back(parquet::schema::PrimitiveNode::Make("SomeBool", parquet::Repetition::REQUIRED, parquet::Type::BOOLEAN, parquet::ConvertedType::NONE));
+    columnNames.push_back(parquet::schema::PrimitiveNode::Make("SomeBoolAlso", parquet::Repetition::REQUIRED, parquet::Type::BOOLEAN, parquet::ConvertedType::NONE));
 
 
     auto schema = std::static_pointer_cast<parquet::schema::GroupNode>(parquet::schema::GroupNode::Make("schema", parquet::Repetition::REQUIRED, columnNames));
@@ -53,7 +55,7 @@ int main(int argc, char **argv) {
     uint64_t a = 0xffffffff;
     uint64_t b = 0xaaaaaaaa;
     for (uint32_t i = 0; i < numRows; ++i) {
-        writer << a-- << saveStateReason.c_str() << b++ << saveStateReason.c_str() << parquet::EndRow;
+        writer << a-- << saveStateReason.c_str() << b++ << saveStateReason.c_str() << false << true << parquet::EndRow;
     }
 
     return 0;
