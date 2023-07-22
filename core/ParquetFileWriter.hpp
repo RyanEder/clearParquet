@@ -315,6 +315,19 @@ public:
                     CacheBuffer(4, (const uint8_t*)&len);
                     CacheBuffer(len, (const uint8_t*)str.c_str());
                 }
+            } else if (element._type == Type::BOOLEAN) {
+                uint8_t storeValue = 0;
+                uint8_t count = 0;
+                for (const auto& value : _boolCols->Get()) {
+                    storeValue |= value << count;
+                    if (++count == 8) {
+                        CacheBuffer(1, (const uint8_t*)&storeValue);
+                        count = 0;
+                    }
+                }
+                if (count != 0) {
+                    CacheBuffer(1, (const uint8_t*)&storeValue);
+                }
             } else {  // Everything else follows this format
                 visit_at(_allCols, (size_t)element._type, [this](auto&& arg) {
                     const auto& size = arg->GetSizeOf();
@@ -324,13 +337,18 @@ public:
                 });
             }
 
-            if (shouldCompress)
+            if (shouldCompress) {
                 CompressData();
+            }
 
             PageHeader header;
 
             uint32_t dataLen = 0;
             visit_at(_allCols, (size_t)element._type, [&dataLen](auto&& arg) { dataLen = arg->GetSize(); });
+            if (element._type == Type::BOOLEAN) {
+                // Bools are bit-packed so their size is different.
+                dataLen = (dataLen + 7) / 8;
+            }
             uint32_t compressedDataLen = (shouldCompress) ? _compressBufferSize : dataLen;
             header.__set_compressed_page_size(compressedDataLen);
             header.__set_uncompressed_page_size(dataLen);
