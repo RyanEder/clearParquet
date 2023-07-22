@@ -142,28 +142,3 @@ private:
     std::vector<int16_t> _fieldIds;
     uint16_t _boolFieldId = 0;
 };
-
-// int main() {
-//     ThriftEncoder encoder;
-//     std::vector<uint8_t> encodedData;
-//
-//     // Encode the individual data types.
-//     encoder.encodeInt32(42, encodedData);
-//     encoder.encodeString("Sample Object", encodedData);
-//     encoder.encodeDoubleList({3.14, 2.71, 1.41}, encodedData);
-//     encoder.encodeInt64(1626940590000, encodedData);
-//     encoder.encodeBool(true, encodedData);
-//     encoder.encodeString("Example description", encodedData);
-//     encoder.encodeByte(0x0A, encodedData);
-//     encoder.encodeInt16(32767, encodedData);
-//
-//     // Print the encoded data (for demonstration purposes).
-//     std::cout << "Encoded data: ";
-//     for (size_t i = 0; i < encodedData.size(); ++i) {
-//         std::cout << std::hex << static_cast<int>(encodedData[i]) << " ";
-//     }
-//     std::cout << std::endl;
-//
-//     return 0;
-// }
-//
