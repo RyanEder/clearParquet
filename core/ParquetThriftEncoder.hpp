@@ -57,7 +57,7 @@ public:
         writeVarint(zigzagEncode(value));
     }
 
-    void writeStructBegin(const std::string& fieldName) {
+    void writeStructBegin(const std::string& /*fieldName*/) {
         _fieldIds.push_back(_previousFieldId);
         _previousFieldId = 0;
     }
@@ -80,9 +80,8 @@ public:
     void writeFieldStop() {
         writeByteDirect(static_cast<uint8_t>(ThriftFieldType::T_STOP));
     }  // write stop bit
-    void writeBinary(const std::string& data) {}
 
-    void writeFieldBegin(const std::string& name, ThriftFieldType fieldType, int16_t fieldId) {
+    void writeFieldBegin(const std::string& /*name*/, ThriftFieldType fieldType, int16_t fieldId) {
         if (fieldType == ThriftFieldType::T_BOOL) {
             _boolFieldId = fieldId;
             // wait for the value itself, bools are strange as the true/false have their own types.
@@ -108,9 +107,15 @@ public:
             _buffer.push_back(static_cast<uint8_t>(c));
         }
     }
+
+    void writeBinary(const std::string& data) {
+        writeString(data);
+    }
+
     uint8_t* getBufferData() {
         return _buffer.data();
     }
+
     size_t getBufferSize() {
         return _buffer.size();
     }
