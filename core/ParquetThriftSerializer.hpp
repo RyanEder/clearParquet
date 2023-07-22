@@ -1,11 +1,11 @@
 #pragma once
 
-#include <thrift/TApplicationException.h>
-#include <thrift/protocol/TCompactProtocol.h>
-#include <thrift/transport/TBufferTransports.h>
 #include "ParquetColumnChunk.hpp"
 #include "ParquetPageHeader.hpp"
 #include "ParquetSchema.hpp"
+#include "ParquetThriftEncoder.hpp"
+
+#include <cstring>
 
 //#define DEBUG 1
 namespace clearParquet {
@@ -27,76 +27,64 @@ constexpr size_t FIELD_IDENTIFIER_13 = 13;
 constexpr size_t FIELD_IDENTIFIER_14 = 14;
 constexpr size_t THRIFT_BUFFER_SIZE = 1024;
 
-using ThriftBuffer = apache::thrift::transport::TMemoryBuffer;
 class ThriftSerializer {
 public:
-    ThriftSerializer() : _memBuffer(new ThriftBuffer(THRIFT_BUFFER_SIZE)) {
-        _protocol = _factory.getProtocol(_memBuffer);
-    }
+    ThriftSerializer() {}
 
     template <class T>
     void SerializeToBuffer(const T* obj, uint32_t* len, uint8_t** buffer) {
-        _memBuffer->resetBuffer();
+        _encoder.clearBuffer();
         SerializeObject(obj);
-        _memBuffer->getBuffer(buffer, len);
+        if (buffer != nullptr && *buffer == nullptr) {
+            *len = _encoder.getBufferSize();
+            *buffer = new uint8_t[*len];
+            memcpy(*buffer, _encoder.getBufferData(), *len);
+        }
     }
 
 private:
     template <class T>
-    uint32_t SerializeObject(const T* obj) {
+    void SerializeObject(const T* obj) {
         // std::cout << "Default Object serialize" << std::endl;
-        return 0;
     }
 
-    uint32_t SerializeObject(const Statistics* obj) {
-        uint32_t xfer = 0;
-        auto oprot = _protocol.get();
-        xfer += oprot->writeStructBegin("Statistics");
+    void SerializeObject(const Statistics* obj) {
+        _encoder.writeStructBegin("Statistics");
 
         if (obj->__isset._max) {
-            xfer += oprot->writeFieldBegin("max", ::apache::thrift::protocol::T_STRING, FIELD_IDENTIFIER_1);
-            xfer += oprot->writeBinary(obj->_max);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("max", ThriftFieldType::T_STRING, FIELD_IDENTIFIER_1);
+            _encoder.writeBinary(obj->_max);
         }
         if (obj->__isset._min) {
-            xfer += oprot->writeFieldBegin("min", ::apache::thrift::protocol::T_STRING, FIELD_IDENTIFIER_2);
-            xfer += oprot->writeBinary(obj->_min);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("min", ThriftFieldType::T_STRING, FIELD_IDENTIFIER_2);
+            _encoder.writeBinary(obj->_min);
         }
         if (obj->__isset._nullCount) {
-            xfer += oprot->writeFieldBegin("null_count", ::apache::thrift::protocol::T_I64, FIELD_IDENTIFIER_3);
-            xfer += oprot->writeI64(obj->_nullCount);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("null_count", ThriftFieldType::T_I64, FIELD_IDENTIFIER_3);
+            _encoder.writeI64(obj->_nullCount);
         }
         if (obj->__isset._distinctCount) {
-            xfer += oprot->writeFieldBegin("distinct_count", ::apache::thrift::protocol::T_I64, FIELD_IDENTIFIER_4);
-            xfer += oprot->writeI64(obj->_distinctCount);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("distinct_count", ThriftFieldType::T_I64, FIELD_IDENTIFIER_4);
+            _encoder.writeI64(obj->_distinctCount);
         }
         if (obj->__isset._maxValue) {
-            xfer += oprot->writeFieldBegin("max_value", ::apache::thrift::protocol::T_STRING, FIELD_IDENTIFIER_5);
-            xfer += oprot->writeBinary(obj->_maxValue);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("max_value", ThriftFieldType::T_STRING, FIELD_IDENTIFIER_5);
+            _encoder.writeBinary(obj->_maxValue);
         }
         if (obj->__isset._minValue) {
-            xfer += oprot->writeFieldBegin("min_value", ::apache::thrift::protocol::T_STRING, FIELD_IDENTIFIER_6);
-            xfer += oprot->writeBinary(obj->_minValue);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("min_value", ThriftFieldType::T_STRING, FIELD_IDENTIFIER_6);
+            _encoder.writeBinary(obj->_minValue);
         }
-        xfer += oprot->writeFieldStop();
-        xfer += oprot->writeStructEnd();
-        return xfer;
+        _encoder.writeFieldStop();
+        _encoder.writeStructEnd();
     }
 
     // Page Serializers
-    uint32_t SerializeObject(const DataPageHeader* obj) {
-        uint32_t xfer = 0;
-        auto oprot = _protocol.get();
-        xfer += oprot->writeStructBegin("DataPageHeader");
+    void SerializeObject(const DataPageHeader* obj) {
+        _encoder.writeStructBegin("DataPageHeader");
 
-        xfer += oprot->writeFieldBegin("num_values", ::apache::thrift::protocol::T_I32, FIELD_IDENTIFIER_1);
-        xfer += oprot->writeI32(obj->_numValues);
-        xfer += oprot->writeFieldEnd();
+        _encoder.writeFieldBegin("num_values", ThriftFieldType::T_I32, FIELD_IDENTIFIER_1);
+        _encoder.writeI32(obj->_numValues);
 #ifdef DEBUG
         std::cout << "DataPageHeader->NUM_VALUES: " << obj->_numValues << std::endl;
         std::cout << "DataPageHeader->ENCODING : " << obj->_encoding << std::endl;
@@ -104,120 +92,93 @@ private:
         std::cout << "DataPageHeader->REPENCODING : " << obj->_repetitionLevelEncoding << std::endl;
 #endif
 
-        xfer += oprot->writeFieldBegin("encoding", ::apache::thrift::protocol::T_I32, FIELD_IDENTIFIER_2);
-        xfer += oprot->writeI32(static_cast<int32_t>(obj->_encoding));
-        xfer += oprot->writeFieldEnd();
+        _encoder.writeFieldBegin("encoding", ThriftFieldType::T_I32, FIELD_IDENTIFIER_2);
+        _encoder.writeI32(static_cast<int32_t>(obj->_encoding));
 
-        xfer += oprot->writeFieldBegin("definition_level_encoding", ::apache::thrift::protocol::T_I32, FIELD_IDENTIFIER_3);
-        xfer += oprot->writeI32(static_cast<int32_t>(obj->_definitionLevelEncoding));
-        xfer += oprot->writeFieldEnd();
+        _encoder.writeFieldBegin("definition_level_encoding", ThriftFieldType::T_I32, FIELD_IDENTIFIER_3);
+        _encoder.writeI32(static_cast<int32_t>(obj->_definitionLevelEncoding));
 
-        xfer += oprot->writeFieldBegin("repetition_level_encoding", ::apache::thrift::protocol::T_I32, FIELD_IDENTIFIER_4);
-        xfer += oprot->writeI32(static_cast<int32_t>(obj->_repetitionLevelEncoding));
-        xfer += oprot->writeFieldEnd();
+        _encoder.writeFieldBegin("repetition_level_encoding", ThriftFieldType::T_I32, FIELD_IDENTIFIER_4);
+        _encoder.writeI32(static_cast<int32_t>(obj->_repetitionLevelEncoding));
 
         if (obj->__isset._statistics) {
 #ifdef DEBUG
             std::cout << "DataPageHeader->STATISTICS: " << std::endl;
 #endif
-            xfer += oprot->writeFieldBegin("statistics", ::apache::thrift::protocol::T_STRUCT, FIELD_IDENTIFIER_5);
-            xfer += SerializeObject(&obj->_statistics);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("statistics", ThriftFieldType::T_STRUCT, FIELD_IDENTIFIER_5);
+            SerializeObject(&obj->_statistics);
         }
-        xfer += oprot->writeFieldStop();
-        xfer += oprot->writeStructEnd();
-
-        return xfer;
+        _encoder.writeFieldStop();
+        _encoder.writeStructEnd();
     }
 
-    uint32_t SerializeObject(const PageHeader* obj) {
-        uint32_t xfer = 0;
-        auto oprot = _protocol.get();
-        xfer += oprot->writeStructBegin("PageHeader");
-        xfer += oprot->writeFieldBegin("type", ::apache::thrift::protocol::T_I32, FIELD_IDENTIFIER_1);
-        xfer += oprot->writeI32(static_cast<int32_t>(obj->_type));
-        xfer += oprot->writeFieldEnd();
+    void SerializeObject(const PageHeader* obj) {
+        _encoder.writeStructBegin("PageHeader");
+        _encoder.writeFieldBegin("type", ThriftFieldType::T_I32, FIELD_IDENTIFIER_1);
+        _encoder.writeI32(static_cast<int32_t>(obj->_type));
 #ifdef DEBUG
         std::cout << "PageHeader->TYPE: " << obj->_type << std::endl;
         std::cout << "PageHeader->UNCOMPRESSED_PAGE_SIZE: " << obj->_uncompressedPageSize << std::endl;
         std::cout << "PageHeader->COMPRESSED_PAGE_SIZE: " << obj->_compressedPageSize << std::endl;
 #endif
 
-        xfer += oprot->writeFieldBegin("uncompressed_page_size", ::apache::thrift::protocol::T_I32, FIELD_IDENTIFIER_2);
-        xfer += oprot->writeI32(obj->_uncompressedPageSize);
-        xfer += oprot->writeFieldEnd();
+        _encoder.writeFieldBegin("uncompressed_page_size", ThriftFieldType::T_I32, FIELD_IDENTIFIER_2);
+        _encoder.writeI32(obj->_uncompressedPageSize);
 
-        xfer += oprot->writeFieldBegin("compressed_page_size", ::apache::thrift::protocol::T_I32, FIELD_IDENTIFIER_3);
-        xfer += oprot->writeI32(obj->_compressedPageSize);
-        xfer += oprot->writeFieldEnd();
+        _encoder.writeFieldBegin("compressed_page_size", ThriftFieldType::T_I32, FIELD_IDENTIFIER_3);
+        _encoder.writeI32(obj->_compressedPageSize);
 
         if (obj->__isset._crc) {
-            xfer += oprot->writeFieldBegin("crc", ::apache::thrift::protocol::T_I32, FIELD_IDENTIFIER_4);
-            xfer += oprot->writeI32(obj->_crc);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("crc", ThriftFieldType::T_I32, FIELD_IDENTIFIER_4);
+            _encoder.writeI32(obj->_crc);
         }
         if (obj->__isset._dataPageHeader) {
-            xfer += oprot->writeFieldBegin("data_page_header", ::apache::thrift::protocol::T_STRUCT, FIELD_IDENTIFIER_5);
+            _encoder.writeFieldBegin("data_page_header", ThriftFieldType::T_STRUCT, FIELD_IDENTIFIER_5);
 #ifdef DEBUG
             std::cout << "PageHeader->DATA_PAGE_HEADER: " << std::endl;
 #endif
-            xfer += SerializeObject(&obj->_dataPageHeader);
-            xfer += oprot->writeFieldEnd();
+            SerializeObject(&obj->_dataPageHeader);
         }
         if (obj->__isset._indexPageHeader) {
-            xfer += oprot->writeFieldBegin("index_page_header", ::apache::thrift::protocol::T_STRUCT, FIELD_IDENTIFIER_6);
-            xfer += SerializeObject(&obj->_indexPageHeader);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("index_page_header", ThriftFieldType::T_STRUCT, FIELD_IDENTIFIER_6);
+            SerializeObject(&obj->_indexPageHeader);
         }
         if (obj->__isset._dictionaryPageHeader) {
-            xfer += oprot->writeFieldBegin("dictionary_page_header", ::apache::thrift::protocol::T_STRUCT, FIELD_IDENTIFIER_7);
-            xfer += SerializeObject(&obj->_dictionaryPageHeader);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("dictionary_page_header", ThriftFieldType::T_STRUCT, FIELD_IDENTIFIER_7);
+            SerializeObject(&obj->_dictionaryPageHeader);
         }
         if (obj->__isset._dataPageHeaderV2) {
-            xfer += oprot->writeFieldBegin("data_page_header_v2", ::apache::thrift::protocol::T_STRUCT, FIELD_IDENTIFIER_8);
-            xfer += SerializeObject(&obj->_dataPageHeaderV2);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("data_page_header_v2", ThriftFieldType::T_STRUCT, FIELD_IDENTIFIER_8);
+            SerializeObject(&obj->_dataPageHeaderV2);
         }
-        xfer += oprot->writeFieldStop();
-        xfer += oprot->writeStructEnd();
-        return xfer;
+        _encoder.writeFieldStop();
+        _encoder.writeStructEnd();
     }
 
     // Column Serializers
-    uint32_t SerializeObject(const PageEncodingStats* obj) {
-        uint32_t xfer = 0;
-        auto oprot = _protocol.get();
-
+    void SerializeObject(const PageEncodingStats* obj) {
 #ifdef DEBUG
         std::cout << "ColumnChunk->PAGE_TYPE: " << obj->_pageType << std::endl;
         std::cout << "ColumnChunk->ENCODING: " << obj->_encoding << std::endl;
         std::cout << "ColumnChunk->COUNT: " << obj->_count << std::endl;
 #endif
-        xfer += oprot->writeStructBegin("PageEncodingStats");
+        _encoder.writeStructBegin("PageEncodingStats");
 
-        xfer += oprot->writeFieldBegin("page_type", ::apache::thrift::protocol::T_I32, FIELD_IDENTIFIER_1);
-        xfer += oprot->writeI32(static_cast<int32_t>(obj->_pageType));
-        xfer += oprot->writeFieldEnd();
+        _encoder.writeFieldBegin("page_type", ThriftFieldType::T_I32, FIELD_IDENTIFIER_1);
+        _encoder.writeI32(static_cast<int32_t>(obj->_pageType));
 
-        xfer += oprot->writeFieldBegin("encoding", ::apache::thrift::protocol::T_I32, FIELD_IDENTIFIER_2);
-        xfer += oprot->writeI32(static_cast<int32_t>(obj->_encoding));
-        xfer += oprot->writeFieldEnd();
+        _encoder.writeFieldBegin("encoding", ThriftFieldType::T_I32, FIELD_IDENTIFIER_2);
+        _encoder.writeI32(static_cast<int32_t>(obj->_encoding));
 
-        xfer += oprot->writeFieldBegin("count", ::apache::thrift::protocol::T_I32, FIELD_IDENTIFIER_3);
-        xfer += oprot->writeI32(obj->_count);
-        xfer += oprot->writeFieldEnd();
+        _encoder.writeFieldBegin("count", ThriftFieldType::T_I32, FIELD_IDENTIFIER_3);
+        _encoder.writeI32(obj->_count);
 
-        xfer += oprot->writeFieldStop();
-        xfer += oprot->writeStructEnd();
-
-        return xfer;
+        _encoder.writeFieldStop();
+        _encoder.writeStructEnd();
     }
 
-    uint32_t SerializeObject(const ColumnMetaData* obj) {
-        uint32_t xfer = 0;
-        auto oprot = _protocol.get();
-        xfer += oprot->writeStructBegin("ColumnMetaData");
+    void SerializeObject(const ColumnMetaData* obj) {
+        _encoder.writeStructBegin("ColumnMetaData");
 #ifdef DEBUG
         std::cout << "ColumnChunk->TYPE: " << obj->_type << std::endl;
         std::cout << "ColumnChunk->CODEC: " << obj->_codec << std::endl;
@@ -227,452 +188,343 @@ private:
         std::cout << "ColumnChunk->DATA_PAGE_OFFSET: " << obj->_dataPageOffset << std::endl;
 #endif
 
-        xfer += oprot->writeFieldBegin("type", ::apache::thrift::protocol::T_I32, FIELD_IDENTIFIER_1);
-        xfer += oprot->writeI32(static_cast<int32_t>(obj->_type));
-        xfer += oprot->writeFieldEnd();
+        _encoder.writeFieldBegin("type", ThriftFieldType::T_I32, FIELD_IDENTIFIER_1);
+        _encoder.writeI32(static_cast<int32_t>(obj->_type));
 
-        xfer += oprot->writeFieldBegin("encodings", ::apache::thrift::protocol::T_LIST, FIELD_IDENTIFIER_2);
+        _encoder.writeFieldBegin("encodings", ThriftFieldType::T_LIST, FIELD_IDENTIFIER_2);
         {
-            xfer += oprot->writeListBegin(::apache::thrift::protocol::T_I32, static_cast<uint32_t>(obj->_encodings.size()));
+            _encoder.writeListBegin(ThriftFieldType::T_I32, static_cast<uint32_t>(obj->_encodings.size()));
             std::vector<Encoding::type>::const_iterator _iter104;
             for (_iter104 = obj->_encodings.begin(); _iter104 != obj->_encodings.end(); ++_iter104) {
 #ifdef DEBUG
                 std::cout << "ColumnChunk->ENCODING: " << *_iter104 << std::endl;
 #endif
-                xfer += oprot->writeI32(static_cast<int32_t>((*_iter104)));
+                _encoder.writeI32(static_cast<int32_t>((*_iter104)));
             }
-            xfer += oprot->writeListEnd();
+            _encoder.writeListEnd();
         }
-        xfer += oprot->writeFieldEnd();
 
-        xfer += oprot->writeFieldBegin("path_in_schema", ::apache::thrift::protocol::T_LIST, FIELD_IDENTIFIER_3);
+        _encoder.writeFieldBegin("path_in_schema", ThriftFieldType::T_LIST, FIELD_IDENTIFIER_3);
         {
-            xfer += oprot->writeListBegin(::apache::thrift::protocol::T_STRING, static_cast<uint32_t>(obj->_pathInSchema.size()));
+            _encoder.writeListBegin(ThriftFieldType::T_STRING, static_cast<uint32_t>(obj->_pathInSchema.size()));
             std::vector<std::string>::const_iterator _iter105;
             for (_iter105 = obj->_pathInSchema.begin(); _iter105 != obj->_pathInSchema.end(); ++_iter105) {
 #ifdef DEBUG
                 std::cout << "ColumnChunk->PATH_IN_SCHEMA: " << *_iter105 << std::endl;
 #endif
-                xfer += oprot->writeString((*_iter105));
+                _encoder.writeString((*_iter105));
             }
-            xfer += oprot->writeListEnd();
+            _encoder.writeListEnd();
         }
-        xfer += oprot->writeFieldEnd();
 
-        xfer += oprot->writeFieldBegin("codec", ::apache::thrift::protocol::T_I32, FIELD_IDENTIFIER_4);
-        xfer += oprot->writeI32(static_cast<int32_t>(obj->_codec));
-        xfer += oprot->writeFieldEnd();
+        _encoder.writeFieldBegin("codec", ThriftFieldType::T_I32, FIELD_IDENTIFIER_4);
+        _encoder.writeI32(static_cast<int32_t>(obj->_codec));
 
-        xfer += oprot->writeFieldBegin("num_values", ::apache::thrift::protocol::T_I64, FIELD_IDENTIFIER_5);
-        xfer += oprot->writeI64(obj->_numValues);
-        xfer += oprot->writeFieldEnd();
+        _encoder.writeFieldBegin("num_values", ThriftFieldType::T_I64, FIELD_IDENTIFIER_5);
+        _encoder.writeI64(obj->_numValues);
 
-        xfer += oprot->writeFieldBegin("total_uncompressed_size", ::apache::thrift::protocol::T_I64, FIELD_IDENTIFIER_6);
-        xfer += oprot->writeI64(obj->_totalUncompressedSize);
-        xfer += oprot->writeFieldEnd();
+        _encoder.writeFieldBegin("total_uncompressed_size", ThriftFieldType::T_I64, FIELD_IDENTIFIER_6);
+        _encoder.writeI64(obj->_totalUncompressedSize);
 
-        xfer += oprot->writeFieldBegin("total_compressed_size", ::apache::thrift::protocol::T_I64, FIELD_IDENTIFIER_7);
-        xfer += oprot->writeI64(obj->_totalCompressedSize);
-        xfer += oprot->writeFieldEnd();
+        _encoder.writeFieldBegin("total_compressed_size", ThriftFieldType::T_I64, FIELD_IDENTIFIER_7);
+        _encoder.writeI64(obj->_totalCompressedSize);
 
         if (obj->__isset._keyValueMetadata) {
-            xfer += oprot->writeFieldBegin("key_value_metadata", ::apache::thrift::protocol::T_LIST, FIELD_IDENTIFIER_8);
+            _encoder.writeFieldBegin("key_value_metadata", ThriftFieldType::T_LIST, FIELD_IDENTIFIER_8);
             {
-                xfer += oprot->writeListBegin(::apache::thrift::protocol::T_STRUCT, static_cast<uint32_t>(obj->_keyValueMetadata.size()));
+                _encoder.writeListBegin(ThriftFieldType::T_STRUCT, static_cast<uint32_t>(obj->_keyValueMetadata.size()));
                 std::vector<KeyValue>::const_iterator _iter106;
                 for (_iter106 = obj->_keyValueMetadata.begin(); _iter106 != obj->_keyValueMetadata.end(); ++_iter106) {
-                    xfer += SerializeObject(&(*_iter106));
+                    SerializeObject(&(*_iter106));
                 }
-                xfer += oprot->writeListEnd();
+                _encoder.writeListEnd();
             }
-            xfer += oprot->writeFieldEnd();
         }
-        xfer += oprot->writeFieldBegin("data_page_offset", ::apache::thrift::protocol::T_I64, FIELD_IDENTIFIER_9);
-        xfer += oprot->writeI64(obj->_dataPageOffset);
-        xfer += oprot->writeFieldEnd();
+        _encoder.writeFieldBegin("data_page_offset", ThriftFieldType::T_I64, FIELD_IDENTIFIER_9);
+        _encoder.writeI64(obj->_dataPageOffset);
 
         if (obj->__isset._indexPageOffset) {
-            xfer += oprot->writeFieldBegin("index_page_offset", ::apache::thrift::protocol::T_I64, FIELD_IDENTIFIER_10);
-            xfer += oprot->writeI64(obj->_indexPageOffset);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("index_page_offset", ThriftFieldType::T_I64, FIELD_IDENTIFIER_10);
+            _encoder.writeI64(obj->_indexPageOffset);
         }
         if (obj->__isset._dictionaryPageOffset) {
-            xfer += oprot->writeFieldBegin("dictionary_page_offset", ::apache::thrift::protocol::T_I64, FIELD_IDENTIFIER_11);
-            xfer += oprot->writeI64(obj->_dictionaryPageOffset);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("dictionary_page_offset", ThriftFieldType::T_I64, FIELD_IDENTIFIER_11);
+            _encoder.writeI64(obj->_dictionaryPageOffset);
         }
         if (obj->__isset._statistics) {
-            xfer += oprot->writeFieldBegin("statistics", ::apache::thrift::protocol::T_STRUCT, FIELD_IDENTIFIER_12);
-            xfer += SerializeObject(&obj->_statistics);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("statistics", ThriftFieldType::T_STRUCT, FIELD_IDENTIFIER_12);
+            SerializeObject(&obj->_statistics);
         }
         if (obj->__isset._encodingStats) {
-            xfer += oprot->writeFieldBegin("encoding_stats", ::apache::thrift::protocol::T_LIST, FIELD_IDENTIFIER_13);
+            _encoder.writeFieldBegin("encoding_stats", ThriftFieldType::T_LIST, FIELD_IDENTIFIER_13);
             {
-                xfer += oprot->writeListBegin(::apache::thrift::protocol::T_STRUCT, static_cast<uint32_t>(obj->_encodingStats.size()));
+                _encoder.writeListBegin(ThriftFieldType::T_STRUCT, static_cast<uint32_t>(obj->_encodingStats.size()));
                 std::vector<PageEncodingStats>::const_iterator _iter107;
                 for (_iter107 = obj->_encodingStats.begin(); _iter107 != obj->_encodingStats.end(); ++_iter107) {
 #ifdef DEBUG
                     std::cout << "ColumnChunk->PAGEENCODINGSTATS: " << std::endl;
 #endif
-                    xfer += SerializeObject(&(*_iter107));
+                    SerializeObject(&(*_iter107));
                 }
-                xfer += oprot->writeListEnd();
+                _encoder.writeListEnd();
             }
-            xfer += oprot->writeFieldEnd();
         }
         if (obj->__isset._bloomFilterOffset) {
-            xfer += oprot->writeFieldBegin("bloom_filter_offset", ::apache::thrift::protocol::T_I64, FIELD_IDENTIFIER_14);
-            xfer += oprot->writeI64(obj->_bloomFilterOffset);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("bloom_filter_offset", ThriftFieldType::T_I64, FIELD_IDENTIFIER_14);
+            _encoder.writeI64(obj->_bloomFilterOffset);
         }
-        xfer += oprot->writeFieldStop();
-        xfer += oprot->writeStructEnd();
-
-        return xfer;
+        _encoder.writeFieldStop();
+        _encoder.writeStructEnd();
     }
-    uint32_t SerializeObject(const ColumnChunk* obj) {
-        uint32_t xfer = 0;
-        auto oprot = _protocol.get();
+    void SerializeObject(const ColumnChunk* obj) {
 #ifdef DEBUG
         std::cout << "ColumnChunk->FILE_OFFSET: " << obj->_fileOffset << std::endl;
 #endif
 
-        xfer += oprot->writeStructBegin("ColumnChunk");
+        _encoder.writeStructBegin("ColumnChunk");
 
         if (obj->__isset._filePath) {
-            xfer += oprot->writeFieldBegin("file_path", ::apache::thrift::protocol::T_STRING, FIELD_IDENTIFIER_1);
-            xfer += oprot->writeString(obj->_filePath);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("file_path", ThriftFieldType::T_STRING, FIELD_IDENTIFIER_1);
+            _encoder.writeString(obj->_filePath);
         }
-        xfer += oprot->writeFieldBegin("file_offset", ::apache::thrift::protocol::T_I64, FIELD_IDENTIFIER_2);
-        xfer += oprot->writeI64(obj->_fileOffset);
-        xfer += oprot->writeFieldEnd();
+        _encoder.writeFieldBegin("file_offset", ThriftFieldType::T_I64, FIELD_IDENTIFIER_2);
+        _encoder.writeI64(obj->_fileOffset);
 
         if (obj->__isset._metaData) {
 #ifdef DEBUG
             std::cout << "ColumnChunk->META_DATA: " << std::endl;
 #endif
-            xfer += oprot->writeFieldBegin("meta_data", ::apache::thrift::protocol::T_STRUCT, FIELD_IDENTIFIER_3);
-            xfer += SerializeObject(&obj->_metaData);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("meta_data", ThriftFieldType::T_STRUCT, FIELD_IDENTIFIER_3);
+            SerializeObject(&obj->_metaData);
         }
         if (obj->__isset._offsetIndexOffset) {
-            xfer += oprot->writeFieldBegin("offset_index_offset", ::apache::thrift::protocol::T_I64, FIELD_IDENTIFIER_4);
-            xfer += oprot->writeI64(obj->_offsetIndexOffset);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("offset_index_offset", ThriftFieldType::T_I64, FIELD_IDENTIFIER_4);
+            _encoder.writeI64(obj->_offsetIndexOffset);
         }
         if (obj->__isset._offsetIndexLength) {
-            xfer += oprot->writeFieldBegin("offset_index_length", ::apache::thrift::protocol::T_I32, FIELD_IDENTIFIER_5);
-            xfer += oprot->writeI32(obj->_offsetIndexLength);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("offset_index_length", ThriftFieldType::T_I32, FIELD_IDENTIFIER_5);
+            _encoder.writeI32(obj->_offsetIndexLength);
         }
         if (obj->__isset._columnIndexOffset) {
-            xfer += oprot->writeFieldBegin("column_index_offset", ::apache::thrift::protocol::T_I64, FIELD_IDENTIFIER_6);
-            xfer += oprot->writeI64(obj->_columnIndexOffset);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("column_index_offset", ThriftFieldType::T_I64, FIELD_IDENTIFIER_6);
+            _encoder.writeI64(obj->_columnIndexOffset);
         }
         if (obj->__isset._columnIndexLength) {
-            xfer += oprot->writeFieldBegin("column_index_length", ::apache::thrift::protocol::T_I32, FIELD_IDENTIFIER_7);
-            xfer += oprot->writeI32(obj->_columnIndexLength);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("column_index_length", ThriftFieldType::T_I32, FIELD_IDENTIFIER_7);
+            _encoder.writeI32(obj->_columnIndexLength);
         }
         if (obj->__isset._cryptoMetadata) {
-            xfer += oprot->writeFieldBegin("crypto_metadata", ::apache::thrift::protocol::T_STRUCT, FIELD_IDENTIFIER_8);
-            xfer += SerializeObject(&obj->_cryptoMetadata);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("crypto_metadata", ThriftFieldType::T_STRUCT, FIELD_IDENTIFIER_8);
+            SerializeObject(&obj->_cryptoMetadata);
         }
         if (obj->__isset._encryptedColumnMetadata) {
-            xfer += oprot->writeFieldBegin("encrypted_column_metadata", ::apache::thrift::protocol::T_STRING, FIELD_IDENTIFIER_9);
-            xfer += oprot->writeBinary(obj->_encryptedColumnMetadata);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("encrypted_column_metadata", ThriftFieldType::T_STRING, FIELD_IDENTIFIER_9);
+            _encoder.writeBinary(obj->_encryptedColumnMetadata);
         }
-        xfer += oprot->writeFieldStop();
-        xfer += oprot->writeStructEnd();
-        return xfer;
+        _encoder.writeFieldStop();
+        _encoder.writeStructEnd();
     }
 
-    uint32_t SerializeObject(const MilliSeconds* obj) {
-        uint32_t xfer = 0;
-        auto oprot = _protocol.get();
-        xfer += oprot->writeStructBegin("MilliSeconds");
+    void SerializeObject(const MilliSeconds* obj) {
+        _encoder.writeStructBegin("MilliSeconds");
 
-        xfer += oprot->writeFieldStop();
-        xfer += oprot->writeStructEnd();
-        return xfer;
+        _encoder.writeFieldStop();
+        _encoder.writeStructEnd();
     }
-    uint32_t SerializeObject(const MicroSeconds* obj) {
-        uint32_t xfer = 0;
-        auto oprot = _protocol.get();
-        xfer += oprot->writeStructBegin("MicroSeconds");
+    void SerializeObject(const MicroSeconds* obj) {
+        _encoder.writeStructBegin("MicroSeconds");
 
-        xfer += oprot->writeFieldStop();
-        xfer += oprot->writeStructEnd();
-        return xfer;
+        _encoder.writeFieldStop();
+        _encoder.writeStructEnd();
     }
-    uint32_t SerializeObject(const NanoSeconds* obj) {
-        uint32_t xfer = 0;
-        auto oprot = _protocol.get();
-        xfer += oprot->writeStructBegin("NanoSeconds");
+    void SerializeObject(const NanoSeconds* obj) {
+        _encoder.writeStructBegin("NanoSeconds");
 
-        xfer += oprot->writeFieldStop();
-        xfer += oprot->writeStructEnd();
-        return xfer;
+        _encoder.writeFieldStop();
+        _encoder.writeStructEnd();
     }
-    uint32_t SerializeObject(const TimeUnit* obj) {
-        uint32_t xfer = 0;
-        auto oprot = _protocol.get();
-        xfer += oprot->writeStructBegin("TimeUnit");
+    void SerializeObject(const TimeUnit* obj) {
+        _encoder.writeStructBegin("TimeUnit");
 
         if (obj->__isset.MILLIS) {
-            xfer += oprot->writeFieldBegin("MILLIS", ::apache::thrift::protocol::T_STRUCT, FIELD_IDENTIFIER_1);
-            xfer += SerializeObject(&obj->MILLIS);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("MILLIS", ThriftFieldType::T_STRUCT, FIELD_IDENTIFIER_1);
+            SerializeObject(&obj->MILLIS);
         }
         if (obj->__isset.MICROS) {
-            xfer += oprot->writeFieldBegin("MICROS", ::apache::thrift::protocol::T_STRUCT, FIELD_IDENTIFIER_2);
-            xfer += SerializeObject(&obj->MICROS);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("MICROS", ThriftFieldType::T_STRUCT, FIELD_IDENTIFIER_2);
+            SerializeObject(&obj->MICROS);
         }
         if (obj->__isset.NANOS) {
-            xfer += oprot->writeFieldBegin("NANOS", ::apache::thrift::protocol::T_STRUCT, FIELD_IDENTIFIER_3);
-            xfer += SerializeObject(&obj->NANOS);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("NANOS", ThriftFieldType::T_STRUCT, FIELD_IDENTIFIER_3);
+            SerializeObject(&obj->NANOS);
         }
-        xfer += oprot->writeFieldStop();
-        xfer += oprot->writeStructEnd();
-        return xfer;
+        _encoder.writeFieldStop();
+        _encoder.writeStructEnd();
     }
-    uint32_t SerializeObject(const StringType* obj) {
-        uint32_t xfer = 0;
-        auto oprot = _protocol.get();
-        xfer += oprot->writeStructBegin("StringType");
+    void SerializeObject(const StringType* obj) {
+        _encoder.writeStructBegin("StringType");
 
-        xfer += oprot->writeFieldStop();
-        xfer += oprot->writeStructEnd();
-        return xfer;
+        _encoder.writeFieldStop();
+        _encoder.writeStructEnd();
     }
-    uint32_t SerializeObject(const MapType* obj) {
-        uint32_t xfer = 0;
-        auto oprot = _protocol.get();
-        xfer += oprot->writeStructBegin("MapType");
+    void SerializeObject(const MapType* obj) {
+        _encoder.writeStructBegin("MapType");
 
-        xfer += oprot->writeFieldStop();
-        xfer += oprot->writeStructEnd();
-        return xfer;
+        _encoder.writeFieldStop();
+        _encoder.writeStructEnd();
     }
-    uint32_t SerializeObject(const ListType* obj) {
-        uint32_t xfer = 0;
-        auto oprot = _protocol.get();
-        xfer += oprot->writeStructBegin("ListType");
+    void SerializeObject(const ListType* obj) {
+        _encoder.writeStructBegin("ListType");
 
-        xfer += oprot->writeFieldStop();
-        xfer += oprot->writeStructEnd();
-        return xfer;
+        _encoder.writeFieldStop();
+        _encoder.writeStructEnd();
     }
-    uint32_t SerializeObject(const EnumType* obj) {
-        uint32_t xfer = 0;
-        auto oprot = _protocol.get();
-        xfer += oprot->writeStructBegin("EnumType");
+    void SerializeObject(const EnumType* obj) {
+        _encoder.writeStructBegin("EnumType");
 
-        xfer += oprot->writeFieldStop();
-        xfer += oprot->writeStructEnd();
-        return xfer;
+        _encoder.writeFieldStop();
+        _encoder.writeStructEnd();
     }
-    uint32_t SerializeObject(const DecimalType* obj) {
-        uint32_t xfer = 0;
-        auto oprot = _protocol.get();
-        xfer += oprot->writeStructBegin("DecimalType");
-        xfer += oprot->writeFieldBegin("scale", ::apache::thrift::protocol::T_I32, FIELD_IDENTIFIER_1);
-        xfer += oprot->writeI32(obj->_scale);
-        xfer += oprot->writeFieldEnd();
+    void SerializeObject(const DecimalType* obj) {
+        _encoder.writeStructBegin("DecimalType");
+        _encoder.writeFieldBegin("scale", ThriftFieldType::T_I32, FIELD_IDENTIFIER_1);
+        _encoder.writeI32(obj->_scale);
 
-        xfer += oprot->writeFieldBegin("precision", ::apache::thrift::protocol::T_I32, FIELD_IDENTIFIER_2);
-        xfer += oprot->writeI32(obj->_precision);
-        xfer += oprot->writeFieldEnd();
+        _encoder.writeFieldBegin("precision", ThriftFieldType::T_I32, FIELD_IDENTIFIER_2);
+        _encoder.writeI32(obj->_precision);
 
-        xfer += oprot->writeFieldStop();
-        xfer += oprot->writeStructEnd();
-        return xfer;
+        _encoder.writeFieldStop();
+        _encoder.writeStructEnd();
     }
-    uint32_t SerializeObject(const DateType* obj) {
-        uint32_t xfer = 0;
-        auto oprot = _protocol.get();
-        xfer += oprot->writeStructBegin("DateType");
+    void SerializeObject(const DateType* obj) {
+        _encoder.writeStructBegin("DateType");
 
-        xfer += oprot->writeFieldStop();
-        xfer += oprot->writeStructEnd();
-        return xfer;
+        _encoder.writeFieldStop();
+        _encoder.writeStructEnd();
     }
-    uint32_t SerializeObject(const TimeType* obj) {
-        uint32_t xfer = 0;
-        auto oprot = _protocol.get();
-        xfer += oprot->writeStructBegin("TimeType");
-        xfer += oprot->writeFieldBegin("isAdjustedToUTC", ::apache::thrift::protocol::T_BOOL, FIELD_IDENTIFIER_1);
-        xfer += oprot->writeBool(obj->_isAdjustedToUTC);
-        xfer += oprot->writeFieldEnd();
+    void SerializeObject(const TimeType* obj) {
+        _encoder.writeStructBegin("TimeType");
+        _encoder.writeFieldBegin("isAdjustedToUTC", ThriftFieldType::T_BOOL, FIELD_IDENTIFIER_1);
+        _encoder.writeBool(obj->_isAdjustedToUTC);
 
-        xfer += oprot->writeFieldBegin("unit", ::apache::thrift::protocol::T_STRUCT, FIELD_IDENTIFIER_2);
-        xfer += SerializeObject(&obj->_unit);
-        xfer += oprot->writeFieldEnd();
+        _encoder.writeFieldBegin("unit", ThriftFieldType::T_STRUCT, FIELD_IDENTIFIER_2);
+        SerializeObject(&obj->_unit);
 
-        xfer += oprot->writeFieldStop();
-        xfer += oprot->writeStructEnd();
-        return xfer;
+        _encoder.writeFieldStop();
+        _encoder.writeStructEnd();
     }
-    uint32_t SerializeObject(const TimestampType* obj) {
-        uint32_t xfer = 0;
-        auto oprot = _protocol.get();
-        xfer += oprot->writeStructBegin("TimestampType");
-        xfer += oprot->writeFieldBegin("isAdjustedToUTC", ::apache::thrift::protocol::T_BOOL, FIELD_IDENTIFIER_1);
-        xfer += oprot->writeBool(obj->_isAdjustedToUTC);
-        xfer += oprot->writeFieldEnd();
+    void SerializeObject(const TimestampType* obj) {
+        _encoder.writeStructBegin("TimestampType");
+        _encoder.writeFieldBegin("isAdjustedToUTC", ThriftFieldType::T_BOOL, FIELD_IDENTIFIER_1);
+        _encoder.writeBool(obj->_isAdjustedToUTC);
 
-        xfer += oprot->writeFieldBegin("unit", ::apache::thrift::protocol::T_STRUCT, FIELD_IDENTIFIER_2);
-        xfer += SerializeObject(&obj->_unit);
-        xfer += oprot->writeFieldEnd();
+        _encoder.writeFieldBegin("unit", ThriftFieldType::T_STRUCT, FIELD_IDENTIFIER_2);
+        SerializeObject(&obj->_unit);
 
-        xfer += oprot->writeFieldStop();
-        xfer += oprot->writeStructEnd();
-        return xfer;
+        _encoder.writeFieldStop();
+        _encoder.writeStructEnd();
     }
-    uint32_t SerializeObject(const IntType* obj) {
-        uint32_t xfer = 0;
-        auto oprot = _protocol.get();
-        xfer += oprot->writeStructBegin("IntType");
-        xfer += oprot->writeFieldBegin("bitWidth", ::apache::thrift::protocol::T_BYTE, FIELD_IDENTIFIER_1);
-        xfer += oprot->writeByte(obj->_bitWidth);
-        xfer += oprot->writeFieldEnd();
+    void SerializeObject(const IntType* obj) {
+        _encoder.writeStructBegin("IntType");
+        _encoder.writeFieldBegin("bitWidth", ThriftFieldType::T_BYTE, FIELD_IDENTIFIER_1);
+        _encoder.writeByte(obj->_bitWidth);
 
-        xfer += oprot->writeFieldBegin("isSigned", ::apache::thrift::protocol::T_BOOL, FIELD_IDENTIFIER_2);
-        xfer += oprot->writeBool(obj->_isSigned);
-        xfer += oprot->writeFieldEnd();
+        _encoder.writeFieldBegin("isSigned", ThriftFieldType::T_BOOL, FIELD_IDENTIFIER_2);
+        _encoder.writeBool(obj->_isSigned);
 
-        xfer += oprot->writeFieldStop();
-        xfer += oprot->writeStructEnd();
-        return xfer;
+        _encoder.writeFieldStop();
+        _encoder.writeStructEnd();
     }
-    uint32_t SerializeObject(const NullType* obj) {
-        uint32_t xfer = 0;
-        auto oprot = _protocol.get();
-        xfer += oprot->writeStructBegin("NullType");
+    void SerializeObject(const NullType* obj) {
+        _encoder.writeStructBegin("NullType");
 
-        xfer += oprot->writeFieldStop();
-        xfer += oprot->writeStructEnd();
-        return xfer;
+        _encoder.writeFieldStop();
+        _encoder.writeStructEnd();
     }
-    uint32_t SerializeObject(const JsonType* obj) {
-        uint32_t xfer = 0;
-        auto oprot = _protocol.get();
-        xfer += oprot->writeStructBegin("JsonType");
+    void SerializeObject(const JsonType* obj) {
+        _encoder.writeStructBegin("JsonType");
 
-        xfer += oprot->writeFieldStop();
-        xfer += oprot->writeStructEnd();
-        return xfer;
+        _encoder.writeFieldStop();
+        _encoder.writeStructEnd();
     }
-    uint32_t SerializeObject(const BsonType* obj) {
-        uint32_t xfer = 0;
-        auto oprot = _protocol.get();
-        xfer += oprot->writeStructBegin("BsonType");
+    void SerializeObject(const BsonType* obj) {
+        _encoder.writeStructBegin("BsonType");
 
-        xfer += oprot->writeFieldStop();
-        xfer += oprot->writeStructEnd();
-        return xfer;
+        _encoder.writeFieldStop();
+        _encoder.writeStructEnd();
     }
-    uint32_t SerializeObject(const UUIDType* obj) {
-        uint32_t xfer = 0;
-        auto oprot = _protocol.get();
-        xfer += oprot->writeStructBegin("UUIDType");
+    void SerializeObject(const UUIDType* obj) {
+        _encoder.writeStructBegin("UUIDType");
 
-        xfer += oprot->writeFieldStop();
-        xfer += oprot->writeStructEnd();
-        return xfer;
+        _encoder.writeFieldStop();
+        _encoder.writeStructEnd();
     }
-    uint32_t SerializeObject(const LogicalType* obj) {
-        uint32_t xfer = 0;
-        auto oprot = _protocol.get();
-        xfer += oprot->writeStructBegin("LogicalType");
+    void SerializeObject(const LogicalType* obj) {
+        _encoder.writeStructBegin("LogicalType");
 
         if (obj->__isset.STRING) {
 #ifdef DEBUG
             std::cout << "FileMetaData->STRING: " << std::endl;
 #endif
-            xfer += oprot->writeFieldBegin("STRING", ::apache::thrift::protocol::T_STRUCT, FIELD_IDENTIFIER_1);
-            xfer += SerializeObject(&obj->STRING);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("STRING", ThriftFieldType::T_STRUCT, FIELD_IDENTIFIER_1);
+            SerializeObject(&obj->STRING);
         }
         if (obj->__isset.MAP) {
-            xfer += oprot->writeFieldBegin("MAP", ::apache::thrift::protocol::T_STRUCT, FIELD_IDENTIFIER_2);
-            xfer += SerializeObject(&obj->MAP);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("MAP", ThriftFieldType::T_STRUCT, FIELD_IDENTIFIER_2);
+            SerializeObject(&obj->MAP);
         }
         if (obj->__isset.LIST) {
-            xfer += oprot->writeFieldBegin("LIST", ::apache::thrift::protocol::T_STRUCT, FIELD_IDENTIFIER_3);
-            xfer += SerializeObject(&obj->LIST);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("LIST", ThriftFieldType::T_STRUCT, FIELD_IDENTIFIER_3);
+            SerializeObject(&obj->LIST);
         }
         if (obj->__isset.ENUM) {
-            xfer += oprot->writeFieldBegin("ENUM", ::apache::thrift::protocol::T_STRUCT, FIELD_IDENTIFIER_4);
-            xfer += SerializeObject(&obj->ENUM);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("ENUM", ThriftFieldType::T_STRUCT, FIELD_IDENTIFIER_4);
+            SerializeObject(&obj->ENUM);
         }
         if (obj->__isset.DECIMAL) {
-            xfer += oprot->writeFieldBegin("DECIMAL", ::apache::thrift::protocol::T_STRUCT, FIELD_IDENTIFIER_5);
-            xfer += SerializeObject(&obj->DECIMAL);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("DECIMAL", ThriftFieldType::T_STRUCT, FIELD_IDENTIFIER_5);
+            SerializeObject(&obj->DECIMAL);
         }
         if (obj->__isset.DATE) {
-            xfer += oprot->writeFieldBegin("DATE", ::apache::thrift::protocol::T_STRUCT, FIELD_IDENTIFIER_6);
-            xfer += SerializeObject(&obj->DATE);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("DATE", ThriftFieldType::T_STRUCT, FIELD_IDENTIFIER_6);
+            SerializeObject(&obj->DATE);
         }
         if (obj->__isset.TIME) {
-            xfer += oprot->writeFieldBegin("TIME", ::apache::thrift::protocol::T_STRUCT, FIELD_IDENTIFIER_7);
-            xfer += SerializeObject(&obj->TIME);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("TIME", ThriftFieldType::T_STRUCT, FIELD_IDENTIFIER_7);
+            SerializeObject(&obj->TIME);
         }
         if (obj->__isset.TIMESTAMP) {
-            xfer += oprot->writeFieldBegin("TIMESTAMP", ::apache::thrift::protocol::T_STRUCT, FIELD_IDENTIFIER_8);
-            xfer += SerializeObject(&obj->TIMESTAMP);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("TIMESTAMP", ThriftFieldType::T_STRUCT, FIELD_IDENTIFIER_8);
+            SerializeObject(&obj->TIMESTAMP);
         }
         if (obj->__isset.INTEGER) {
 #ifdef DEBUG
             std::cout << "FileMetaData->INT: " << std::endl;
 #endif
-            xfer += oprot->writeFieldBegin("INTEGER", ::apache::thrift::protocol::T_STRUCT, FIELD_IDENTIFIER_10);
-            xfer += SerializeObject(&obj->INTEGER);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("INTEGER", ThriftFieldType::T_STRUCT, FIELD_IDENTIFIER_10);
+            SerializeObject(&obj->INTEGER);
         }
         if (obj->__isset.UNKNOWN) {
-            xfer += oprot->writeFieldBegin("UNKNOWN", ::apache::thrift::protocol::T_STRUCT, FIELD_IDENTIFIER_11);
-            xfer += SerializeObject(&obj->UNKNOWN);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("UNKNOWN", ThriftFieldType::T_STRUCT, FIELD_IDENTIFIER_11);
+            SerializeObject(&obj->UNKNOWN);
         }
         if (obj->__isset.JSON) {
-            xfer += oprot->writeFieldBegin("JSON", ::apache::thrift::protocol::T_STRUCT, FIELD_IDENTIFIER_12);
-            xfer += SerializeObject(&obj->JSON);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("JSON", ThriftFieldType::T_STRUCT, FIELD_IDENTIFIER_12);
+            SerializeObject(&obj->JSON);
         }
         if (obj->__isset.BSON) {
-            xfer += oprot->writeFieldBegin("BSON", ::apache::thrift::protocol::T_STRUCT, FIELD_IDENTIFIER_13);
-            xfer += SerializeObject(&obj->BSON);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("BSON", ThriftFieldType::T_STRUCT, FIELD_IDENTIFIER_13);
+            SerializeObject(&obj->BSON);
         }
         if (obj->__isset.UUID) {
-            xfer += oprot->writeFieldBegin("UUID", ::apache::thrift::protocol::T_STRUCT, FIELD_IDENTIFIER_14);
-            xfer += SerializeObject(&obj->UUID);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("UUID", ThriftFieldType::T_STRUCT, FIELD_IDENTIFIER_14);
+            SerializeObject(&obj->UUID);
         }
-        xfer += oprot->writeFieldStop();
-        xfer += oprot->writeStructEnd();
-
-        return xfer;
+        _encoder.writeFieldStop();
+        _encoder.writeStructEnd();
     }
-    uint32_t SerializeObject(const SchemaElement* obj) {
-        uint32_t xfer = 0;
-        auto oprot = _protocol.get();
-        xfer += oprot->writeStructBegin("SchemaElement");
+    void SerializeObject(const SchemaElement* obj) {
+        _encoder.writeStructBegin("SchemaElement");
 #ifdef DEBUG
         std::cout << "FileMetaData->NAME: " << obj->_name << std::endl;
 #endif
@@ -680,104 +532,83 @@ private:
 #ifdef DEBUG
             std::cout << "FileMetaData->TYPE: " << obj->_type << std::endl;
 #endif
-            xfer += oprot->writeFieldBegin("type", ::apache::thrift::protocol::T_I32, FIELD_IDENTIFIER_1);
-            xfer += oprot->writeI32(static_cast<int32_t>(obj->_type));
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("type", ThriftFieldType::T_I32, FIELD_IDENTIFIER_1);
+            _encoder.writeI32(static_cast<int32_t>(obj->_type));
         }
         if (obj->__isset._typeLength) {
-            xfer += oprot->writeFieldBegin("type_length", ::apache::thrift::protocol::T_I32, FIELD_IDENTIFIER_2);
-            xfer += oprot->writeI32(obj->_typeLength);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("type_length", ThriftFieldType::T_I32, FIELD_IDENTIFIER_2);
+            _encoder.writeI32(obj->_typeLength);
         }
         if (obj->__isset._repetitionType) {
 #ifdef DEBUG
             std::cout << "FileMetaData->REPTYPE: " << obj->_repetitionType << std::endl;
 #endif
-            xfer += oprot->writeFieldBegin("repetition_type", ::apache::thrift::protocol::T_I32, FIELD_IDENTIFIER_3);
-            xfer += oprot->writeI32(static_cast<int32_t>(obj->_repetitionType));
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("repetition_type", ThriftFieldType::T_I32, FIELD_IDENTIFIER_3);
+            _encoder.writeI32(static_cast<int32_t>(obj->_repetitionType));
         }
-        xfer += oprot->writeFieldBegin("name", ::apache::thrift::protocol::T_STRING, FIELD_IDENTIFIER_4);
-        xfer += oprot->writeString(obj->_name);
-        xfer += oprot->writeFieldEnd();
+        _encoder.writeFieldBegin("name", ThriftFieldType::T_STRING, FIELD_IDENTIFIER_4);
+        _encoder.writeString(obj->_name);
 
         if (obj->__isset._numChildren) {
 #ifdef DEBUG
             std::cout << "FileMetaData->NUM_CHILD: " << obj->_numChildren << std::endl;
 #endif
-            xfer += oprot->writeFieldBegin("num_children", ::apache::thrift::protocol::T_I32, FIELD_IDENTIFIER_5);
-            xfer += oprot->writeI32(obj->_numChildren);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("num_children", ThriftFieldType::T_I32, FIELD_IDENTIFIER_5);
+            _encoder.writeI32(obj->_numChildren);
         }
         if (obj->__isset._convertedType) {
 #ifdef DEBUG
             std::cout << "FileMetaData->CONVTYPE: " << obj->_convertedType << std::endl;
 #endif
-            xfer += oprot->writeFieldBegin("converted_type", ::apache::thrift::protocol::T_I32, FIELD_IDENTIFIER_6);
-            xfer += oprot->writeI32(static_cast<int32_t>(obj->_convertedType));
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("converted_type", ThriftFieldType::T_I32, FIELD_IDENTIFIER_6);
+            _encoder.writeI32(static_cast<int32_t>(obj->_convertedType));
         }
         if (obj->__isset._scale) {
-            xfer += oprot->writeFieldBegin("scale", ::apache::thrift::protocol::T_I32, FIELD_IDENTIFIER_7);
-            xfer += oprot->writeI32(obj->_scale);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("scale", ThriftFieldType::T_I32, FIELD_IDENTIFIER_7);
+            _encoder.writeI32(obj->_scale);
         }
         if (obj->__isset._precision) {
-            xfer += oprot->writeFieldBegin("precision", ::apache::thrift::protocol::T_I32, FIELD_IDENTIFIER_8);
-            xfer += oprot->writeI32(obj->_precision);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("precision", ThriftFieldType::T_I32, FIELD_IDENTIFIER_8);
+            _encoder.writeI32(obj->_precision);
         }
         if (obj->__isset._fieldId) {
-            xfer += oprot->writeFieldBegin("field_id", ::apache::thrift::protocol::T_I32, FIELD_IDENTIFIER_9);
-            xfer += oprot->writeI32(obj->_fieldId);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("field_id", ThriftFieldType::T_I32, FIELD_IDENTIFIER_9);
+            _encoder.writeI32(obj->_fieldId);
         }
         if (obj->__isset._logicalType) {
 #ifdef DEBUG
             std::cout << "FileMetaData->LOGICALTYPE: " << std::endl;
 #endif
-            xfer += oprot->writeFieldBegin("logicalType", ::apache::thrift::protocol::T_STRUCT, FIELD_IDENTIFIER_10);
-            xfer += SerializeObject(&obj->_logicalType);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("logicalType", ThriftFieldType::T_STRUCT, FIELD_IDENTIFIER_10);
+            SerializeObject(&obj->_logicalType);
         }
-        xfer += oprot->writeFieldStop();
-        xfer += oprot->writeStructEnd();
-
-        return xfer;
+        _encoder.writeFieldStop();
+        _encoder.writeStructEnd();
     }
 
-    uint32_t SerializeObject(const TypeDefinedOrder* obj) {
-        uint32_t xfer = 0;
-        auto oprot = _protocol.get();
-        xfer += oprot->writeStructBegin("TypeDefinedOrder");
+    void SerializeObject(const TypeDefinedOrder* obj) {
+        _encoder.writeStructBegin("TypeDefinedOrder");
 
-        xfer += oprot->writeFieldStop();
-        xfer += oprot->writeStructEnd();
-        return xfer;
+        _encoder.writeFieldStop();
+        _encoder.writeStructEnd();
     }
 
-    uint32_t SerializeObject(const ColumnOrder* obj) {
-        uint32_t xfer = 0;
-        auto oprot = _protocol.get();
-        xfer += oprot->writeStructBegin("ColumnOrder");
+    void SerializeObject(const ColumnOrder* obj) {
+        _encoder.writeStructBegin("ColumnOrder");
 
         if (obj->__isset.TYPE_ORDER) {
 #ifdef DEBUG
             std::cout << "FileMetaData->TYPE_ORDER: " << std::endl;
 #endif
-            xfer += oprot->writeFieldBegin("TYPE_ORDER", ::apache::thrift::protocol::T_STRUCT, FIELD_IDENTIFIER_1);
-            xfer += SerializeObject(&obj->TYPE_ORDER);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("TYPE_ORDER", ThriftFieldType::T_STRUCT, FIELD_IDENTIFIER_1);
+            SerializeObject(&obj->TYPE_ORDER);
         }
-        xfer += oprot->writeFieldStop();
-        xfer += oprot->writeStructEnd();
-        return xfer;
+        _encoder.writeFieldStop();
+        _encoder.writeStructEnd();
     }
 
-    uint32_t SerializeObject(const RowGroup* obj) {
-        uint32_t xfer = 0;
-        auto oprot = _protocol.get();
-        xfer += oprot->writeStructBegin("RowGroup");
+    void SerializeObject(const RowGroup* obj) {
+        _encoder.writeStructBegin("RowGroup");
 #ifdef DEBUG
         std::cout << "FileMetaData->TOTAL_BYTE_SIZE: " << obj->_totalByteSize << std::endl;
         std::cout << "FileMetaData->NUM_ROWS: " << obj->_numRows << std::endl;
@@ -786,156 +617,134 @@ private:
         std::cout << "FileMetaData->ORDINAL: " << obj->_ordinal << std::endl;
 #endif
 
-        xfer += oprot->writeFieldBegin("columns", ::apache::thrift::protocol::T_LIST, FIELD_IDENTIFIER_1);
+        _encoder.writeFieldBegin("columns", ThriftFieldType::T_LIST, FIELD_IDENTIFIER_1);
         {
-            xfer += oprot->writeListBegin(::apache::thrift::protocol::T_STRUCT, static_cast<uint32_t>(obj->_columns.size()));
+            _encoder.writeListBegin(ThriftFieldType::T_STRUCT, static_cast<uint32_t>(obj->_columns.size()));
             std::vector<ColumnChunk>::const_iterator _iter134;
             for (_iter134 = obj->_columns.begin(); _iter134 != obj->_columns.end(); ++_iter134) {
 #ifdef DEBUG
                 std::cout << "FileMetaData->COLUMN: " << std::endl;
 #endif
-                xfer += SerializeObject(&(*_iter134));
+                SerializeObject(&(*_iter134));
             }
-            xfer += oprot->writeListEnd();
+            _encoder.writeListEnd();
         }
-        xfer += oprot->writeFieldEnd();
 
-        xfer += oprot->writeFieldBegin("total_byte_size", ::apache::thrift::protocol::T_I64, FIELD_IDENTIFIER_2);
-        xfer += oprot->writeI64(obj->_totalByteSize);
-        xfer += oprot->writeFieldEnd();
+        _encoder.writeFieldBegin("total_byte_size", ThriftFieldType::T_I64, FIELD_IDENTIFIER_2);
+        _encoder.writeI64(obj->_totalByteSize);
 
-        xfer += oprot->writeFieldBegin("num_rows", ::apache::thrift::protocol::T_I64, FIELD_IDENTIFIER_3);
-        xfer += oprot->writeI64(obj->_numRows);
-        xfer += oprot->writeFieldEnd();
+        _encoder.writeFieldBegin("num_rows", ThriftFieldType::T_I64, FIELD_IDENTIFIER_3);
+        _encoder.writeI64(obj->_numRows);
 
         if (obj->__isset._sortingColumns) {
-            xfer += oprot->writeFieldBegin("sorting_columns", ::apache::thrift::protocol::T_LIST, FIELD_IDENTIFIER_4);
+            _encoder.writeFieldBegin("sorting_columns", ThriftFieldType::T_LIST, FIELD_IDENTIFIER_4);
             {
-                xfer += oprot->writeListBegin(::apache::thrift::protocol::T_STRUCT, static_cast<uint32_t>(obj->_sortingColumns.size()));
+                _encoder.writeListBegin(ThriftFieldType::T_STRUCT, static_cast<uint32_t>(obj->_sortingColumns.size()));
                 std::vector<SortingColumn>::const_iterator _iter135;
                 for (_iter135 = obj->_sortingColumns.begin(); _iter135 != obj->_sortingColumns.end(); ++_iter135) {
-                    xfer += SerializeObject(&(*_iter135));
+                    SerializeObject(&(*_iter135));
                 }
-                xfer += oprot->writeListEnd();
+                _encoder.writeListEnd();
             }
-            xfer += oprot->writeFieldEnd();
         }
         if (obj->__isset._fileOffset) {
-            xfer += oprot->writeFieldBegin("file_offset", ::apache::thrift::protocol::T_I64, FIELD_IDENTIFIER_5);
-            xfer += oprot->writeI64(obj->_fileOffset);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("file_offset", ThriftFieldType::T_I64, FIELD_IDENTIFIER_5);
+            _encoder.writeI64(obj->_fileOffset);
         }
         if (obj->__isset._totalCompressedSize) {
-            xfer += oprot->writeFieldBegin("total_compressed_size", ::apache::thrift::protocol::T_I64, FIELD_IDENTIFIER_6);
-            xfer += oprot->writeI64(obj->_totalCompressedSize);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("total_compressed_size", ThriftFieldType::T_I64, FIELD_IDENTIFIER_6);
+            _encoder.writeI64(obj->_totalCompressedSize);
         }
         if (obj->__isset._ordinal) {
-            xfer += oprot->writeFieldBegin("ordinal", ::apache::thrift::protocol::T_I16, FIELD_IDENTIFIER_7);
-            xfer += oprot->writeI16(obj->_ordinal);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("ordinal", ThriftFieldType::T_I16, FIELD_IDENTIFIER_7);
+            _encoder.writeI16(obj->_ordinal);
         }
-        xfer += oprot->writeFieldStop();
-        xfer += oprot->writeStructEnd();
-        return xfer;
+        _encoder.writeFieldStop();
+        _encoder.writeStructEnd();
     }
 
-    uint32_t SerializeObject(const FileMetaData* obj) {
-        uint32_t xfer = 0;
-        auto oprot = _protocol.get();
-        xfer += oprot->writeStructBegin("FileMetaData");
+    void SerializeObject(const FileMetaData* obj) {
+        _encoder.writeStructBegin("FileMetaData");
 #ifdef DEBUG
         std::cout << "FileMetaData->VERSION: " << obj->_version << std::endl;
         std::cout << "FileMetaData->NUM_ROWS: " << obj->_numRows << std::endl;
         std::cout << "FileMetaData->CREATED: " << obj->_createdBy << std::endl;
 #endif
 
-        xfer += oprot->writeFieldBegin("version", ::apache::thrift::protocol::T_I32, FIELD_IDENTIFIER_1);
-        xfer += oprot->writeI32(obj->_version);
-        xfer += oprot->writeFieldEnd();
+        _encoder.writeFieldBegin("version", ThriftFieldType::T_I32, FIELD_IDENTIFIER_1);
+        _encoder.writeI32(obj->_version);
 
-        xfer += oprot->writeFieldBegin("schema", ::apache::thrift::protocol::T_LIST, FIELD_IDENTIFIER_2);
+        _encoder.writeFieldBegin("schema", ThriftFieldType::T_LIST, FIELD_IDENTIFIER_2);
         {
-            xfer += oprot->writeListBegin(::apache::thrift::protocol::T_STRUCT, static_cast<uint32_t>(obj->_schema.size()));
+            _encoder.writeListBegin(ThriftFieldType::T_STRUCT, static_cast<uint32_t>(obj->_schema.size()));
             std::vector<SchemaElement>::const_iterator _iter205;
             for (_iter205 = obj->_schema.begin(); _iter205 != obj->_schema.end(); ++_iter205) {
 #ifdef DEBUG
                 std::cout << "FileMetaData->SCHEMA: " << std::endl;
 #endif
-                xfer += SerializeObject(&(*_iter205));
+                SerializeObject(&(*_iter205));
             }
-            xfer += oprot->writeListEnd();
+            _encoder.writeListEnd();
         }
-        xfer += oprot->writeFieldEnd();
 
-        xfer += oprot->writeFieldBegin("num_rows", ::apache::thrift::protocol::T_I64, FIELD_IDENTIFIER_3);
-        xfer += oprot->writeI64(obj->_numRows);
-        xfer += oprot->writeFieldEnd();
+        _encoder.writeFieldBegin("num_rows", ThriftFieldType::T_I64, FIELD_IDENTIFIER_3);
+        _encoder.writeI64(obj->_numRows);
 
-        xfer += oprot->writeFieldBegin("row_groups", ::apache::thrift::protocol::T_LIST, FIELD_IDENTIFIER_4);
+        _encoder.writeFieldBegin("row_groups", ThriftFieldType::T_LIST, FIELD_IDENTIFIER_4);
         {
-            xfer += oprot->writeListBegin(::apache::thrift::protocol::T_STRUCT, static_cast<uint32_t>(obj->_rowGroups.size()));
+            _encoder.writeListBegin(ThriftFieldType::T_STRUCT, static_cast<uint32_t>(obj->_rowGroups.size()));
             std::vector<RowGroup>::const_iterator _iter206;
             for (_iter206 = obj->_rowGroups.begin(); _iter206 != obj->_rowGroups.end(); ++_iter206) {
 #ifdef DEBUG
                 std::cout << "FileMetaData->ROW_GROUPS: " << std::endl;
 #endif
-                xfer += SerializeObject(&(*_iter206));
+                SerializeObject(&(*_iter206));
             }
-            xfer += oprot->writeListEnd();
+            _encoder.writeListEnd();
         }
-        xfer += oprot->writeFieldEnd();
 
         if (obj->__isset._keyValueMetadata) {
-            xfer += oprot->writeFieldBegin("key_value_metadata", ::apache::thrift::protocol::T_LIST, FIELD_IDENTIFIER_5);
+            _encoder.writeFieldBegin("key_value_metadata", ThriftFieldType::T_LIST, FIELD_IDENTIFIER_5);
             {
-                xfer += oprot->writeListBegin(::apache::thrift::protocol::T_STRUCT, static_cast<uint32_t>(obj->_keyValueMetadata.size()));
+                _encoder.writeListBegin(ThriftFieldType::T_STRUCT, static_cast<uint32_t>(obj->_keyValueMetadata.size()));
                 std::vector<KeyValue>::const_iterator _iter207;
                 for (_iter207 = obj->_keyValueMetadata.begin(); _iter207 != obj->_keyValueMetadata.end(); ++_iter207) {
-                    xfer += SerializeObject(&(*_iter207));
+                    SerializeObject(&(*_iter207));
                 }
-                xfer += oprot->writeListEnd();
+                _encoder.writeListEnd();
             }
-            xfer += oprot->writeFieldEnd();
         }
         if (obj->__isset._createdBy) {
-            xfer += oprot->writeFieldBegin("created_by", ::apache::thrift::protocol::T_STRING, FIELD_IDENTIFIER_6);
-            xfer += oprot->writeString(obj->_createdBy);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("created_by", ThriftFieldType::T_STRING, FIELD_IDENTIFIER_6);
+            _encoder.writeString(obj->_createdBy);
         }
         if (obj->__isset._columnOrders) {
-            xfer += oprot->writeFieldBegin("column_orders", ::apache::thrift::protocol::T_LIST, FIELD_IDENTIFIER_7);
+            _encoder.writeFieldBegin("column_orders", ThriftFieldType::T_LIST, FIELD_IDENTIFIER_7);
             {
-                xfer += oprot->writeListBegin(::apache::thrift::protocol::T_STRUCT, static_cast<uint32_t>(obj->_columnOrders.size()));
+                _encoder.writeListBegin(ThriftFieldType::T_STRUCT, static_cast<uint32_t>(obj->_columnOrders.size()));
                 std::vector<ColumnOrder>::const_iterator _iter208;
                 for (_iter208 = obj->_columnOrders.begin(); _iter208 != obj->_columnOrders.end(); ++_iter208) {
 #ifdef DEBUG
                     std::cout << "FileMetaData->COLUMNORDERS: " << std::endl;
 #endif
-                    xfer += SerializeObject(&(*_iter208));
+                    SerializeObject(&(*_iter208));
                 }
-                xfer += oprot->writeListEnd();
+                _encoder.writeListEnd();
             }
-            xfer += oprot->writeFieldEnd();
         }
         if (obj->__isset._encryptionAlgorithm) {
-            xfer += oprot->writeFieldBegin("encryption_algorithm", ::apache::thrift::protocol::T_STRUCT, FIELD_IDENTIFIER_8);
-            xfer += SerializeObject(&obj->_encryptionAlgorithm);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("encryption_algorithm", ThriftFieldType::T_STRUCT, FIELD_IDENTIFIER_8);
+            SerializeObject(&obj->_encryptionAlgorithm);
         }
         if (obj->__isset._footerSigningKeyMetadata) {
-            xfer += oprot->writeFieldBegin("footer_signing_key_metadata", ::apache::thrift::protocol::T_STRING, FIELD_IDENTIFIER_9);
-            xfer += oprot->writeBinary(obj->_footerSigningKeyMetadata);
-            xfer += oprot->writeFieldEnd();
+            _encoder.writeFieldBegin("footer_signing_key_metadata", ThriftFieldType::T_STRING, FIELD_IDENTIFIER_9);
+            _encoder.writeBinary(obj->_footerSigningKeyMetadata);
         }
-        xfer += oprot->writeFieldStop();
-        xfer += oprot->writeStructEnd();
-        return xfer;
+        _encoder.writeFieldStop();
+        _encoder.writeStructEnd();
     }
 
-    apache::thrift::protocol::TCompactProtocolFactoryT<ThriftBuffer> _factory;
-    std::shared_ptr<ThriftBuffer> _memBuffer;
-    std::shared_ptr<apache::thrift::protocol::TProtocol> _protocol;
+    ParquetThriftEncoder _encoder;
 };
 
 }  // end namespace clearParquet

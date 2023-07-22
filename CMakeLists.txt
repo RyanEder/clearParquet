@@ -16,12 +16,6 @@ message("CMAKE_BUILD_TYPE is ${CMAKE_BUILD_TYPE}")
 
 include_directories(core)
 
-# Thrift
-find_library(thrift_location NAMES libthrift.a)
-message(STATUS ${thrift_location})
-add_library(thrift STATIC IMPORTED)
-set_target_properties(thrift PROPERTIES IMPORTED_LOCATION ${thrift_location})
-
 # ZSTD
 find_library(zstd_location NAMES libzstd.a)
 message(STATUS ${zstd_location})
@@ -57,7 +51,7 @@ file(GLOB_RECURSE WRITER_TEST_HEADERS
         ${CMAKE_SOURCE_DIR}/test/writer.hpp)
 
 set(ALL_WRITER_TEST_SOURCES ${WRITER_TEST_HEADERS} ${WRITER_TEST_SOURCES})
-set(ALL_WRITER_TEST_LIBRARIES clearParquet thrift)
+set(ALL_WRITER_TEST_LIBRARIES clearParquet)
 if(zstd_location)
     set(ALL_WRITER_TEST_LIBRARIES ${ALL_WRITER_TEST_LIBRARIES} zstd)
 endif()
