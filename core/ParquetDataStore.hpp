@@ -8,7 +8,7 @@ namespace clearParquet {
 template <class T>
 class DataStore {
 public:
-    DataStore(uint32_t reserveSize, uint32_t columnCount) : _columnCount(columnCount), _col(0), _sizeIndexer(0) {
+    DataStore(size_t reserveSize, uint32_t columnCount) : _columnCount(columnCount), _col(0), _sizeIndexer(0) {
         if (columnCount > 0) {
             _store.resize(columnCount);
             _sizes.resize(columnCount);
