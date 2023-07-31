@@ -3,6 +3,7 @@
 #include "ParquetPageHeader.hpp"
 #include "ParquetTypes.hpp"
 
+#include <iostream>
 #include <string>
 #include <vector>
 
@@ -218,6 +219,15 @@ public:
         return !(*this == rhs);
     }
 };
+std::ostream& operator<<(std::ostream& os, const ColumnMetaData& obj) {
+    os << "   Type: " << obj._type << std::endl;
+    os << "   Codec: " << obj._codec << std::endl;
+    os << "   NumValues: " << obj._numValues << std::endl;
+    os << "   TotalUncompressedSize: " << obj._totalUncompressedSize << std::endl;
+    os << "   TotalCompressedSize: " << obj._totalCompressedSize << std::endl;
+    os << "   DataPageOffset: " << obj._dataPageOffset << std::endl;
+    return os;
+}
 
 class EncryptionWithFooterKey {
 public:
@@ -404,4 +414,16 @@ public:
         return !(*this == rhs);
     }
 };
+
+std::ostream& operator<<(std::ostream& os, const ColumnChunk& obj) {
+    os << "  FilePath: " << obj._filePath << std::endl;
+    os << "  FileOffset: " << obj._fileOffset << std::endl;
+    os << "  Metadata: \n" << obj._metaData << std::endl;
+    os << "  OffsetIndexOffset: " << obj._offsetIndexOffset << std::endl;
+    os << "  OffsetIndexLength: " << obj._offsetIndexLength << std::endl;
+    os << "  ColumnIndexOffset: " << obj._columnIndexOffset << std::endl;
+    os << "  ColumnIndexLength: " << obj._columnIndexLength << std::endl;
+    return os;
+}
+
 }  // end namespace clearParquet

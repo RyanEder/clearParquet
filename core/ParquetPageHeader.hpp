@@ -1,4 +1,5 @@
 #pragma once
+#include <iostream>
 #include "ParquetTypes.hpp"
 
 namespace clearParquet {
@@ -361,4 +362,11 @@ public:
         return !(*this == rhs);
     }
 };
+
+std::ostream& operator<<(std::ostream& os, const PageHeader& obj) {
+    os << "UncompressedPageSize: " << obj._uncompressedPageSize << std::endl;
+    os << "CompressedPageSize: " << obj._compressedPageSize << std::endl;
+    return os;
+}
+
 }  // end namespace clearParquet

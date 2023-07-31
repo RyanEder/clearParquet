@@ -91,17 +91,6 @@ public:
         fieldType = static_cast<ThriftFieldType>(typeValue);
     }
 
-    // void decodeStructBegin(const std::string& /*fieldName*/) {
-    //     _fieldIds.push_back(_previousFieldId);
-    //     _previousFieldId = 0;
-    // }
-
-    // void decodeStructEnd() {
-    //     _previousFieldId = _fieldIds.back();
-    //     _fieldIds.pop_back();
-    //     // pop from stack.
-    // }
-    // void decodeListEnd() {}
     void decodeListBegin(const char* data, size_t& offset, ThriftFieldType& elementType, int32_t& size) {
         uint8_t byte = decodeByte(data, offset);
         size = (byte >> 4) & 0x0F;
@@ -112,49 +101,9 @@ public:
         elementType = static_cast<ThriftFieldType>(byte & 0x0F);
     }
 
-    // void decodeListBegin(ThriftFieldType fieldType, uint32_t count) {
-    //     if (count <= 14) {
-    //         decodeByte(count << 4 | static_cast<uint32_t>(fieldType));
-    //     } else {
-    //         decodeByte(0xf0 | static_cast<uint32_t>(fieldType));
-    //         decodeVarint(count);
-    //     }
-    // }
-
     uint8_t decodeFieldStop(const char* data, size_t& offset) {
         return decodeByte(data, offset);
     }  // decode stop bit
-
-    // void decodeFieldBegin(const std::string& /*name*/, ThriftFieldType fieldType, int16_t fieldId) {
-    //     if (fieldType == ThriftFieldType::T_BOOL) {
-    //         _boolFieldId = fieldId;
-    //         // wait for the value itself, bools are strange as the true/false have their own types.
-    //         return;
-    //     }
-    //     int16_t fieldDelta = fieldId - _previousFieldId;
-    //     int8_t fieldTypeByte = static_cast<int8_t>(fieldType);
-
-    //    if (fieldDelta >= -15 && fieldDelta <= 15) {
-    //        decodeByte(static_cast<uint8_t>((static_cast<uint16_t>(fieldDelta) << 4) | fieldTypeByte));
-    //    } else {
-    //        decodeByte(static_cast<uint8_t>(fieldTypeByte));
-    //        decodeVarint(static_cast<int32_t>(fieldDelta));
-    //    }
-
-    //    _previousFieldId = fieldId;
-    //}
-
-    // void decodeBinary(const std::string& data) {
-    //     decodeString(data);
-    // }
-
-    // uint8_t* getBufferData() {
-    //     return _buffer.data();
-    // }
-
-    // size_t getBufferSize() {
-    //     return _buffer.size();
-    // }
 
 private:
     // Helper function to read a varint (variable-length integer) from the binary data.
@@ -189,9 +138,4 @@ private:
     size_t _offset = 0;
 };
 
-// int16_t _previousFieldId = 0;
-// std::vector<uint8_t> _buffer;
-// std::vector<int16_t> _fieldIds;
-// uint16_t _boolFieldId = 0;
-//};
 }  // end namespace clearParquet

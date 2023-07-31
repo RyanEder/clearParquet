@@ -303,6 +303,15 @@ struct SchemaElement {
     }
 };
 
+std::ostream& operator<<(std::ostream& os, const SchemaElement& obj) {
+    os << " Type: " << obj._type << std::endl;
+    os << " TypeLen: " << obj._typeLength << std::endl;
+    os << " RepType: " << obj._repetitionType << std::endl;
+    os << " Name: " << obj._name << std::endl;
+    os << " NumChild: " << obj._numChildren << std::endl;
+    return os;
+}
+
 class PrimitiveNode : public Node {
 public:
     static inline NodePtr Make(const std::string& name, Repetition::type repetition, Type::type type, ConvertedType::type convertedType = ConvertedType::NONE,
@@ -696,6 +705,17 @@ public:
     }
 };
 
+std::ostream& operator<<(std::ostream& os, const RowGroup& obj) {
+    for (const auto& chunk : obj._columns) {
+        os << chunk << std::endl;
+    }
+    os << " TotalByteSize: " << obj._totalByteSize << std::endl;
+    os << " NumRows: " << obj._numRows << std::endl;
+    os << " FileOffset: " << obj._fileOffset << std::endl;
+    os << " TotalCompressedSize: " << obj._totalCompressedSize << std::endl;
+    return os;
+}
+
 class TypeDefinedOrder {
 public:
     TypeDefinedOrder() {}
@@ -827,5 +847,20 @@ public:
         return !(*this == rhs);
     }
 };
+
+std::ostream& operator<<(std::ostream& os, const FileMetaData& obj) {
+    os << "Version: " << obj._version << std::endl;
+    os << "Schema: " << std::endl;
+    for (const auto& schema : obj._schema) {
+        os << schema << std::endl;
+    }
+    os << "NumRows: " << obj._numRows << std::endl;
+    os << "RowGroups: " << std::endl;
+    for (const auto& rowGroup : obj._rowGroups) {
+        os << rowGroup << std::endl;
+    }
+    os << "CreatedBy: " << obj._createdBy << std::endl;
+    return os;
+}
 
 }  // end namespace clearParquet
