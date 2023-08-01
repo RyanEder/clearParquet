@@ -106,6 +106,18 @@ public:
         _fileWriter->SetMaxRowGroupSize(rowsize);
     }
 
+    size_t GetNumRows() {
+        return _fileWriter->GetNumRows();
+    }
+
+    size_t GetCurrentRowsInGroup() {
+        return _fileWriter->GetCurrentRowsInGroup();
+    }
+
+    size_t GetOffset() {
+        return _fileWriter->GetOffset();
+    }
+
 private:
     std::unique_ptr<ParquetFileWriter> _fileWriter;
     uint64_t _maxRowGroupSize;

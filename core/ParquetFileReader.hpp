@@ -268,7 +268,7 @@ private:
         return header;
     }
 
-    void ReadData(Type::type type, size_t numValues, size_t dataSize, size_t offset, std::shared_ptr<RecordBatch>& batch, std::string name) {
+    void ReadData(Type::type type, size_t numValues, size_t dataSize, size_t offset, std::shared_ptr<RecordBatch>& batch, std::string& name) {
         if (_currentBufferLen <= dataSize) {
             delete _buffer;
             _buffer = new char[dataSize];

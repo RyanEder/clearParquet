@@ -30,7 +30,7 @@ public:
         void disable_statistics() {  // Not enabled by default.
         }
 
-        void compression(Compression::type compression) {
+        Builder& compression(Compression::type compression) {
             if (compression != Compression::UNCOMPRESSED
 #if defined(PARQUET_SNAPPY_COMPRESSION)
                 && compression != Compression::SNAPPY
@@ -50,6 +50,7 @@ public:
                     " is unsupported.");
             }
             _compression = compression;
+            return *this;
         }
 
     private:

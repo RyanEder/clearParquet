@@ -484,7 +484,7 @@ public:
 
     _LogicalType__isset __isset;
 
-    const bool __is_set() const {
+    bool __is_set() const {
         if (__isset.STRING || __isset.MAP || __isset.LIST || __isset.ENUM || __isset.DECIMAL || __isset.DATE || __isset.TIME || __isset.TIMESTAMP ||
             __isset.INTEGER || __isset.UNKNOWN || __isset.JSON || __isset.BSON || __isset.UUID) {
             return true;
