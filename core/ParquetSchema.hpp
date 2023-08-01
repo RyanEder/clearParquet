@@ -19,9 +19,9 @@ constexpr size_t BITWIDTH_64 = 64;
 
 class Node {
 public:
-    enum type { PRIMITIVE, GROUP };
+    enum NodeType { PRIMITIVE, GROUP };
 
-    Node(Node::type type, const std::string& name, Repetition::type repetition, ConvertedType::type convertedType, int id = -1)
+    Node(Node::NodeType type, const std::string& name, Repetition::type repetition, ConvertedType::type convertedType, int id = -1)
         : _type(type), _name(name), _repetition(repetition), _convertedType(convertedType), _id(id), _parent(nullptr) {
         switch (_convertedType) {
             case ConvertedType::UTF8:
@@ -132,7 +132,7 @@ public:
     const std::string& Name() const {
         return _name;
     }
-    Node::type GetNodeType() const {
+    Node::NodeType GetNodeType() const {
         return _type;
     }
     Repetition::type GetRepetitionType() const {
@@ -170,7 +170,7 @@ public:
     virtual void Visit(Visitor* visitor) = 0;
     virtual void VisitConst(ConstVisitor* visitor) const = 0;
 
-    Node::type _type;
+    Node::NodeType _type;
     std::string _name;
     Repetition::type _repetition;
     ConvertedType::type _convertedType;
@@ -333,7 +333,7 @@ public:
         if (!Node::EqualsInternal(other)) {
             return false;
         }
-        return EqualsInternal(dynamic_cast<const PrimitiveNode*>(other));
+        return EqualsInternal(static_cast<const PrimitiveNode*>(other));
     }
     void Visit(Node::Visitor* visitor) override {
         visitor->Visit(this);
@@ -427,7 +427,7 @@ public:
         if (!Node::EqualsInternal(other)) {
             return false;
         }
-        return EqualsInternal(dynamic_cast<const GroupNode*>(other));
+        return EqualsInternal(static_cast<const GroupNode*>(other));
     }
 
     void ToParquet(void* opaque_element) const override {
@@ -474,7 +474,7 @@ public:
         _elements->push_back(element);
 
         if (node->IsGroup()) {
-            const GroupNode* group_node = dynamic_cast<const GroupNode*>(node);
+            const GroupNode* group_node = static_cast<const GroupNode*>(node);
             for (int i = 0; i < group_node->FieldCount(); ++i) {
                 group_node->Field(i)->VisitConst(this);
             }

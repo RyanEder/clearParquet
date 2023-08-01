@@ -241,7 +241,7 @@ public:
         }
     }
 
-    void CacheBuffer(uint32_t len, const uint8_t* buffer) {
+    void CacheBuffer(uint64_t len, const uint8_t* buffer) {
         if (_cacheIndex + len >= _cacheBufferSize) {
             throw std::runtime_error("Not enough space in the buffer cache.");
         }
@@ -251,9 +251,9 @@ public:
 
     void WriteFileMetaData() {
         // Calculate and finish the file.
-        uint32_t metadataLen = static_cast<uint32_t>(_file.tellg());
+        uint64_t metadataLen = static_cast<uint64_t>(_file.tellg());
         SerializeAndWrite(&_fileMetaData);
-        metadataLen = static_cast<uint32_t>(_file.tellg()) - metadataLen;
+        metadataLen = static_cast<uint64_t>(_file.tellg()) - metadataLen;
         _file.write(reinterpret_cast<const char*>(&metadataLen), 4);
         _file.write(PARQUET_MAGIC, 4);
     }
@@ -294,7 +294,7 @@ public:
 
     void EndRowGroup() {
         // Figure and write a row group of column chunks
-        uint32_t initialOffset = static_cast<uint32_t>(_file.tellg());
+        uint64_t initialOffset = static_cast<uint64_t>(_file.tellg());
         uint64_t rowBytes = 0;
         uint64_t rowBytesCompressed = 0;
 
@@ -343,20 +343,20 @@ public:
 
             PageHeader header;
 
-            uint32_t dataLen = 0;
+            uint64_t dataLen = 0;
             visit_at(_allCols, (size_t)element._type, [&dataLen](auto&& arg) { dataLen = arg->GetSize(); });
             if (element._type == Type::BOOLEAN) {
                 // Bools are bit-packed so their size is different.
                 dataLen = (dataLen + 7) / 8;
             }
-            uint32_t compressedDataLen = (shouldCompress) ? _compressBufferSize : dataLen;
+            uint64_t compressedDataLen = (shouldCompress) ? _compressBufferSize : dataLen;
             header.__set_compressed_page_size(compressedDataLen);
             header.__set_uncompressed_page_size(dataLen);
             header.__set_data_page_header(_dataPageHeader);
             // Write Header
-            uint32_t dataPageOffset = static_cast<uint32_t>(_file.tellg());
+            uint64_t dataPageOffset = static_cast<uint64_t>(_file.tellg());
             SerializeAndWrite(&header);
-            uint32_t pageHeaderLen = static_cast<uint32_t>(_file.tellg()) - dataPageOffset;
+            uint64_t pageHeaderLen = static_cast<uint64_t>(_file.tellg()) - dataPageOffset;
 
             ColumnChunk chunk;
             ColumnMetaData cmd;
@@ -417,6 +417,18 @@ public:
     void EndRow() {
         ++_numRows;
         ++_totalRows;
+    }
+
+    size_t GetNumRows() {
+        return _totalRows;
+    }
+
+    size_t GetCurrentRowsInGroup() {
+        return _numRows;
+    }
+
+    size_t GetOffset() {
+        return static_cast<size_t>(_file.tellg());
     }
 
     static std::unique_ptr<ParquetFileWriter> Open(const std::shared_ptr<FileOutputStream>& filename, ParquetSchema& schema,

@@ -1,21 +1,28 @@
 #pragma once
 
-#include <variant>
 #include <iomanip>
+#include <variant>
 
 #include "ParquetDataStore.hpp"
 #include "ParquetSchema.hpp"
 
 namespace clearParquet {
 
-using VariantType = std::variant<std::shared_ptr<DataStore<bool>>, std::shared_ptr<DataStore<float>>, std::shared_ptr<DataStore<double>>,
-                                 std::shared_ptr<DataStore<int32_t>>, std::shared_ptr<DataStore<int64_t>>, std::shared_ptr<DataStore<std::string>>,
-                                 std::shared_ptr<DataStore<char>>>;
+using VariantType =
+    std::variant<std::shared_ptr<DataStore<bool>>, std::shared_ptr<DataStore<float>>, std::shared_ptr<DataStore<double>>, std::shared_ptr<DataStore<int32_t>>,
+                 std::shared_ptr<DataStore<int64_t>>, std::shared_ptr<DataStore<std::string>>, std::shared_ptr<DataStore<char>>>;
 
 class RecordBatch {
 public:
     RecordBatch(std::vector<SchemaElement>& schemas, size_t reserveSize = 1024LL * 1024LL)
-        : _boolCols(nullptr), _floatCols(nullptr), _doubleCols(nullptr), _int32Cols(nullptr), _int64Cols(nullptr), _strCols(nullptr), _maxValues(0), _maxWidth(10) {
+        : _boolCols(nullptr),
+          _floatCols(nullptr),
+          _doubleCols(nullptr),
+          _int32Cols(nullptr),
+          _int64Cols(nullptr),
+          _strCols(nullptr),
+          _maxValues(0),
+          _maxWidth(10) {
         // Count up each type of column
         uint32_t counts[(uint8_t)Type::NONE] = {0};
         for (uint32_t i = 0; i < schemas.size() - 1; ++i) {
@@ -87,7 +94,9 @@ public:
                 std::string str(buffer + offset, len);
                 offset += len;
                 _strCols->StoreSimple(str, len);
-                if (len > _maxWidth) { _maxWidth = len; }
+                if (len > _maxWidth) {
+                    _maxWidth = len;
+                }
             }
             _strCols->IncrementCol();
             _orderedCols.push_back(std::pair(_strCols, name));
@@ -95,11 +104,16 @@ public:
             _boolCols->StoreBoolBlock(buffer, numValues);
             _orderedCols.push_back(std::pair(_boolCols, name));
         } else {
-            visit_at(_allCols, (size_t)type, [this, &numValues, &buffer, &name](auto&& arg) { arg->StoreBlock(buffer, numValues); _orderedCols.push_back(std::pair(arg, name)); });
+            visit_at(_allCols, (size_t)type, [this, &numValues, &buffer, &name](auto&& arg) {
+                arg->StoreBlock(buffer, numValues);
+                _orderedCols.push_back(std::pair(arg, name));
+            });
         }
     }
 
-    std::vector<std::pair<VariantType, std::string>>& Columns() { return _orderedCols; }
+    std::vector<std::pair<VariantType, std::string>>& Columns() {
+        return _orderedCols;
+    }
 
     void PrintBatch() {
         // specific col callback here.
@@ -112,13 +126,14 @@ public:
         for (size_t i = 0; i < _maxValues; ++i) {
             std::cout << "| ";
             for (size_t j = 0; j < _orderedCols.size(); ++j) {
-                std::visit([&i, this](const auto& ptr) {
-                    std::cout << std::setw(_maxWidth) << ptr->_store[ptr->_col][i] << " | ";
-                    ptr->IncrementCol();
-                }, _orderedCols[j].first);
+                std::visit(
+                    [&i, this](const auto& ptr) {
+                        std::cout << std::setw(_maxWidth) << ptr->_store[ptr->_col][i] << " | ";
+                        ptr->IncrementCol();
+                    },
+                    _orderedCols[j].first);
             }
             std::cout << std::endl;
-
         }
     }
     void Nothing() {}
