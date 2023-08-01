@@ -63,8 +63,8 @@ public:
         try {
             _file.open(filename->filename(), std::ios::out | std::ios::binary);
         } catch (...) {
-            throw std::invalid_argument(std::string("Cannot open file: ") + filename->filename());
             _opened = false;
+            throw std::invalid_argument(std::string("Cannot open file: ") + filename->filename());
         }
         // Collect the schema for storage requirements
         SchemaBuilder builder;

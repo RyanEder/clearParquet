@@ -26,24 +26,48 @@ public:
     void Store(const T& val, uint32_t size) {
         _store[_col].emplace_back(val);
         _sizes[_col] += size;
-        if (++_col % _columnCount == 0) {
-            _col = 0;
-        }
+        IncrementCol();
     }
     void Store(T& val, uint32_t size) {
         _store[_col].emplace_back(val);
         _sizes[_col] += size;
+        IncrementCol();
+    }
+    void StoreBlock(char* block, size_t numValues) {
+        auto size = sizeof(T);
+        size_t offset = 0;
+        for (size_t i = 0; i < numValues; ++i) {
+            _store[_col].emplace_back(*(T*)(block + offset));
+            offset += size;
+        }
+        IncrementCol();
+    }
+    // Should only be called on bool specifically.
+    void StoreBoolBlock(char* block, size_t numValues) {
+        for (size_t i = 0; i < numValues; ++i) {
+            size_t byteIndex = i / 8;
+            size_t bitPos = i % 8;
+            char byteValue = block[byteIndex];
+            _store[_col].emplace_back((T)((byteValue & (1 << bitPos)) != 0));
+        }
+        IncrementCol();
+    }
+    void IncrementCol() {
         if (++_col % _columnCount == 0) {
             _col = 0;
         }
     }
+
+    void StoreSimple(const T& val, uint32_t size) {
+        _store[_col].emplace_back(val);
+        _sizes[_col] += size;
+    }
+
     std::vector<T>& Get() {
         // Get impliles a full and in-order traversal of the data structure.
         // Wrapping after a full read.
         auto& vec = _store[_col];
-        if (++_col % _columnCount == 0) {
-            _col = 0;
-        }
+        IncrementCol();
         return vec;
     }
 
@@ -69,6 +93,7 @@ public:
             size = 0;
         }
     }
+    size_t ValueCount() { return _store.size(); }
 
 public:
     std::vector<std::vector<T> > _store;

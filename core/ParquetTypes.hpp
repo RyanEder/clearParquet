@@ -112,6 +112,23 @@ struct Repetition {
 };
 using FieldRepetitionType = Repetition;
 
+// Compact Protocol field types
+enum class ThriftFieldType : uint8_t {
+    T_STOP = 0x00,
+    T_BOOL = 0x01,
+    T_BOOL_FALSE = 0x02,
+    T_BYTE = 0x03,
+    T_I16 = 0x04,
+    T_I32 = 0x05,
+    T_I64 = 0x06,
+    T_DOUBLE = 0x07,
+    T_STRING = 0x08,
+    T_LIST = 0x09,
+    T_SET = 0x0A,
+    T_MAP = 0x0B,
+    T_STRUCT = 0x0C
+};
+
 static constexpr char PARQUET_MAGIC[4] = {'P', 'A', 'R', '1'};
 
 typedef struct _TimeUnit__isset {
