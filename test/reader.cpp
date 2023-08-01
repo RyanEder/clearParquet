@@ -12,10 +12,7 @@ int main(int argc, char **argv) {
     auto schema = reader->schema();
 
     for (const auto& batch : *reader){
-        // specific col callback here.
-        for (const auto& val : batch->_strCols->Get()) {
-            std::cout << val << std::endl;
-        }
+        batch->PrintBatch();
     }
 
     return 0;

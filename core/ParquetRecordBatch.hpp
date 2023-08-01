@@ -1,13 +1,21 @@
 #pragma once
+
+#include <variant>
+#include <iomanip>
+
 #include "ParquetDataStore.hpp"
 #include "ParquetSchema.hpp"
 
 namespace clearParquet {
 
+using VariantType = std::variant<std::shared_ptr<DataStore<bool>>, std::shared_ptr<DataStore<float>>, std::shared_ptr<DataStore<double>>,
+                                 std::shared_ptr<DataStore<int32_t>>, std::shared_ptr<DataStore<int64_t>>, std::shared_ptr<DataStore<std::string>>,
+                                 std::shared_ptr<DataStore<char>>>;
+
 class RecordBatch {
 public:
     RecordBatch(std::vector<SchemaElement>& schemas, size_t reserveSize = 1024LL * 1024LL)
-        : _boolCols(nullptr), _floatCols(nullptr), _doubleCols(nullptr), _int32Cols(nullptr), _int64Cols(nullptr), _strCols(nullptr) {
+        : _boolCols(nullptr), _floatCols(nullptr), _doubleCols(nullptr), _int32Cols(nullptr), _int64Cols(nullptr), _strCols(nullptr), _maxValues(0), _maxWidth(10) {
         // Count up each type of column
         uint32_t counts[(uint8_t)Type::NONE] = {0};
         for (uint32_t i = 0; i < schemas.size() - 1; ++i) {
@@ -67,7 +75,10 @@ public:
         visit_impl(tup, idx, fun, Indices{});
     }
 
-    void ParseBuffer(Type::type type, char* buffer, size_t numValues) {
+    void ParseBuffer(Type::type type, char* buffer, size_t numValues, std::string name) {
+        if (numValues > _maxValues) {
+            _maxValues = numValues;
+        }
         if (type == Type::BYTE_ARRAY) {
             size_t offset = 0;
             for (size_t i = 0; i < numValues; ++i) {
@@ -76,14 +87,41 @@ public:
                 std::string str(buffer + offset, len);
                 offset += len;
                 _strCols->StoreSimple(str, len);
+                if (len > _maxWidth) { _maxWidth = len; }
             }
             _strCols->IncrementCol();
+            _orderedCols.push_back(std::pair(_strCols, name));
         } else if (type == Type::BOOLEAN) {
             _boolCols->StoreBoolBlock(buffer, numValues);
+            _orderedCols.push_back(std::pair(_boolCols, name));
         } else {
-            visit_at(_allCols, (size_t)type, [this, &numValues, &buffer](auto&& arg) { arg->StoreBlock(buffer, numValues); });
+            visit_at(_allCols, (size_t)type, [this, &numValues, &buffer, &name](auto&& arg) { arg->StoreBlock(buffer, numValues); _orderedCols.push_back(std::pair(arg, name)); });
         }
     }
+
+    std::vector<std::pair<VariantType, std::string>>& Columns() { return _orderedCols; }
+
+    void PrintBatch() {
+        // specific col callback here.
+        std::cout << "| ";
+        for (const auto& col : _orderedCols) {
+            auto& name = col.second;
+            std::cout << std::left << std::setw(_maxWidth) << name << " | ";
+        }
+        std::cout << std::endl;
+        for (size_t i = 0; i < _maxValues; ++i) {
+            std::cout << "| ";
+            for (size_t j = 0; j < _orderedCols.size(); ++j) {
+                std::visit([&i, this](const auto& ptr) {
+                    std::cout << std::setw(_maxWidth) << ptr->_store[ptr->_col][i] << " | ";
+                    ptr->IncrementCol();
+                }, _orderedCols[j].first);
+            }
+            std::cout << std::endl;
+
+        }
+    }
+    void Nothing() {}
 
 public:
     std::shared_ptr<DataStore<bool>> _boolCols;
@@ -96,6 +134,9 @@ public:
                std::shared_ptr<DataStore<float>>, std::shared_ptr<DataStore<double>>, std::shared_ptr<DataStore<std::string>>, std::shared_ptr<DataStore<char>>,
                std::shared_ptr<DataStore<char>>>
         _allCols;
+    std::vector<std::pair<VariantType, std::string>> _orderedCols;
+    size_t _maxValues;
+    size_t _maxWidth;
 };
 
 }  // end namespace clearParquet

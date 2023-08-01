@@ -229,7 +229,6 @@ public:
             _decoder.decodeFieldStop();  // Column Orders stop
             _decoder.decodeFieldStop();  // File meta data stop
         }
-        _records.push_back(std::make_shared<RecordBatch>(_schemas));
         ReadIntoBatch();
     }
 
@@ -237,7 +236,7 @@ private:
     void MagicCheck(const char* magicBytes) {
         if (memcmp(magicBytes, PARQUET_MAGIC, 4) != 0) {
             std::stringstream ss;
-            ss << "File: " << _filename->filename() << " does not start with " << PARQUET_MAGIC << " bytes.";
+            ss << "File: " << _filename->filename() << " does not start with PAR1 magic bytes.";
             throw std::runtime_error(ss.str());
         }
     }
@@ -269,7 +268,7 @@ private:
         return header;
     }
 
-    void ReadData(Type::type type, size_t numValues, size_t dataSize, size_t offset, std::shared_ptr<RecordBatch>& batch) {
+    void ReadData(Type::type type, size_t numValues, size_t dataSize, size_t offset, std::shared_ptr<RecordBatch>& batch, std::string name) {
         if (_currentBufferLen <= dataSize) {
             delete _buffer;
             _buffer = new char[dataSize];
@@ -277,22 +276,24 @@ private:
         }
         _file.seekg(offset, std::ios::beg);
         _file.read(reinterpret_cast<char*>(_buffer), dataSize);
-        batch->ParseBuffer(type, _buffer, numValues);
+        batch->ParseBuffer(type, _buffer, numValues, name);
     }
 
     void ReadIntoBatch() {
-        auto& batch = _records[0];
+        size_t indexer = 1;
         for (const auto& rowGroup : _fileMetaData._rowGroups) {
-            // const auto& initialOffset = rowGroup._fileOffset;
+            auto batch = std::make_shared<RecordBatch>(_schemas);
+            _records.push_back(batch);
             for (const auto& chunk : rowGroup._columns) {
-                auto chunkOffset = chunk._fileOffset;
+                size_t chunkOffset = chunk._fileOffset;
                 auto pheader = DecodePageHeader(chunk._metaData._dataPageOffset, 19);
-                auto numValues = pheader._dataPageHeader._numValues;
-                auto dataSize = pheader._compressedPageSize;
-                auto dataOffset = chunkOffset - dataSize;
+                size_t numValues = pheader._dataPageHeader._numValues;
+                size_t dataSize = pheader._compressedPageSize;
+                size_t dataOffset = chunkOffset - dataSize;
                 auto type = chunk._metaData._type;
-                ReadData(type, numValues, dataSize, dataOffset, batch);
+                ReadData(type, numValues, dataSize, dataOffset, batch, _schemas[indexer++]._name);
             }
+            indexer = 0;
         }
     }
 

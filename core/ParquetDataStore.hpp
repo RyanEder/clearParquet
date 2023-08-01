@@ -93,6 +93,7 @@ public:
             size = 0;
         }
     }
+    size_t ValueCount() { return _store.size(); }
 
 public:
     std::vector<std::vector<T> > _store;
