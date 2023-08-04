@@ -146,6 +146,10 @@ public:
     }
 
     ~ParquetFileWriter() {
+        Close();
+    }
+
+    void Close() {
         EndFile();
         try {
             if (_opened) {
@@ -154,13 +158,16 @@ public:
         } catch (...) {}
         if (_cacheBuffer != nullptr) {
             delete _cacheBuffer;
+            _cacheBuffer = nullptr;
         }
         if (_compressBuffer != nullptr) {
             delete _compressBuffer;
+            _compressBuffer = nullptr;
         }
 #if defined(PARQUET_ZSTD_COMPRESSION)
         if (_cctx != nullptr) {
             ZSTD_freeCCtx(_cctx);
+            _cctx = nullptr;
         }
 #endif
     }

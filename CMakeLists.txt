@@ -4,7 +4,7 @@ project(clearParquet)
 set(CMAKE_CXX_STANDARD 17)
 if (MSVC)
     set(CXX_GROUPED_WARNING_FLAGS "/WX /permissive-")
-    set(CXX_SPECIFIC_WARNING_FLAGS "/Za /Zc:strictStrings- /w14650 /wd4068 /w34701 /EHsc")
+    set(CXX_SPECIFIC_WARNING_FLAGS "/Zc:strictStrings- /w14650 /wd4068 /w34701 /EHsc")
 else()
     set(CXX_GROUPED_WARNING_FLAGS "-Werror -Wall -Wextra -Wno-ignored-qualifiers -Wno-unused-parameter -pedantic -Wshadow -fno-rtti")
     set(CXX_SPECIFIC_WARNING_FLAGS "-Wcast-align -Wcast-qual -Winit-self -Wlogical-op -Wunknown-pragmas -Wwrite-strings -Wno-deprecated-copy -Wno-pessimizing-move -Wno-implicit-fallthrough -Wno-stringop-truncation -Wno-unknown-pragmas -Wsuggest-override -Wcast-qual -Wtautological-compare")
@@ -64,79 +64,13 @@ endif()
 
 add_subdirectory(core)
 
-# Tests
-file(GLOB_RECURSE WRITER_TEST_SOURCES
-        RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_SOURCE_DIR}/test/writer.cpp)
-file(GLOB_RECURSE WRITER_TEST_HEADERS
-        RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_SOURCE_DIR}/test/writer.hpp)
-
-set(ALL_WRITER_TEST_SOURCES ${WRITER_TEST_HEADERS} ${WRITER_TEST_SOURCES})
-set(ALL_WRITER_TEST_LIBRARIES)
-add_executable(writer ${ALL_WRITER_TEST_SOURCES})
-if(zstd_location)
-    set(ALL_WRITER_TEST_LIBRARIES ${ALL_WRITER_TEST_LIBRARIES} zstd)
-    if(MSVC)
-        target_include_directories(writer PRIVATE ${ZSTD_BASE}/include)
-    endif()
-endif()
-if(snappy_location)
-    set(ALL_WRITER_TEST_LIBRARIES ${ALL_WRITER_TEST_LIBRARIES} snappy)
-    if(MSVC)
-        target_include_directories(writer PRIVATE ${SNAPPY_BASE}/include)
-    endif()
-endif()
-
-target_link_libraries(writer ${ALL_WRITER_TEST_LIBRARIES})
-set_target_properties(writer PROPERTIES OUTPUT_NAME writer${BUILD_POSTFIX})
-set_target_properties(writer PROPERTIES LINKER_LANGUAGE CXX)
-
-file(GLOB_RECURSE READER_TEST_SOURCES
-        RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_SOURCE_DIR}/test/reader.cpp)
-file(GLOB_RECURSE READER_TEST_HEADERS
-        RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_SOURCE_DIR}/test/reader.hpp)
-
-set(ALL_READER_TEST_SOURCES ${READER_TEST_HEADERS} ${READER_TEST_SOURCES})
-set(ALL_READER_TEST_LIBRARIES)
-add_executable(reader ${ALL_READER_TEST_SOURCES})
-if(zstd_location)
-    set(ALL_READER_TEST_LIBRARIES ${ALL_READER_TEST_LIBRARIES} zstd)
-    if(MSVC)
-        target_include_directories(reader PRIVATE ${ZSTD_BASE}/include)
-    endif()
-endif()
-if(snappy_location)
-    set(ALL_READER_TEST_LIBRARIES ${ALL_READER_TEST_LIBRARIES} snappy)
-    if(MSVC)
-        target_include_directories(reader PRIVATE ${SNAPPY_BASE}/include)
-    endif()
-endif()
-
-target_link_libraries(reader ${ALL_READER_TEST_LIBRARIES})
-set_target_properties(reader PROPERTIES OUTPUT_NAME reader${BUILD_POSTFIX})
-set_target_properties(reader PROPERTIES LINKER_LANGUAGE CXX)
-
 # Clang format fixup
 add_custom_target(format COMMAND ${CMAKE_COMMAND} -E env clang-format -i ${CMAKE_SOURCE_DIR}/core/*.hpp)
 
 # Clang tidy check
 add_custom_target(tidy COMMAND ${CMAKE_COMMAND} -E env clang-tidy ${CMAKE_SOURCE_DIR}/core/*.hpp -extra-arg=-std=c++17)
 
+add_subdirectory(catch2)
 
-# Arrow Tests
-#file(GLOB_RECURSE ARROW_WRITER_TEST_SOURCES
-#        RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
-#        ${CMAKE_SOURCE_DIR}/test/arrowWriter.cpp)
-#file(GLOB_RECURSE ARROW_WRITER_TEST_HEADERS
-#        RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
-#        ${CMAKE_SOURCE_DIR}/test/arrowWriter.hpp)
-#
-#set(ALL_ARROW_WRITER_TEST_SOURCES ${ARROW_WRITER_TEST_HEADERS} ${ARROW_WRITER_TEST_SOURCES})
-#set(ALL_ARROW_WRITER_TEST_LIBRARIES parquet arrow)
-#add_executable(arrowWriter ${ALL_ARROW_WRITER_TEST_SOURCES})
-#target_link_libraries(arrowWriter ${ALL_ARROW_WRITER_TEST_LIBRARIES})
-#set_target_properties(arrowWriter PROPERTIES OUTPUT_NAME arrowWriter${BUILD_POSTFIX})
-#set_target_properties(arrowWriter PROPERTIES LINKER_LANGUAGE CXX)
+add_subdirectory(test)
+
