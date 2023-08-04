@@ -118,6 +118,10 @@ public:
         return _fileWriter->GetOffset();
     }
 
+    void Close() {
+        _fileWriter->Close();
+    }
+
 private:
     std::unique_ptr<ParquetFileWriter> _fileWriter;
     uint64_t _maxRowGroupSize;

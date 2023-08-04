@@ -647,6 +647,29 @@ struct CompressionCodec {
     enum type { UNCOMPRESSED = 0, SNAPPY = 1, GZIP = 2, LZO = 3, BROTLI = 4, LZ4 = 5, ZSTD = 6, LZ4_RAW = 7 };
 };
 
+static inline Compression::type CompressionConvert(CompressionCodec::type type) {
+    switch (type) {
+        case CompressionCodec::UNCOMPRESSED:
+            return Compression::UNCOMPRESSED;
+        case CompressionCodec::SNAPPY:
+            return Compression::SNAPPY;
+        case CompressionCodec::GZIP:
+            return Compression::GZIP;
+        case CompressionCodec::LZO:
+            return Compression::LZO;
+        case CompressionCodec::BROTLI:
+            return Compression::BROTLI;
+        case CompressionCodec::LZ4_RAW:
+            return Compression::LZ4;
+        case CompressionCodec::LZ4:
+            return Compression::LZ4_HADOOP;
+        case CompressionCodec::ZSTD:
+            return Compression::ZSTD;
+        default:
+            return Compression::UNCOMPRESSED;
+    }
+}
+
 static inline CompressionCodec::type CompressionConvert(Compression::type type) {
     switch (type) {
         case Compression::UNCOMPRESSED:

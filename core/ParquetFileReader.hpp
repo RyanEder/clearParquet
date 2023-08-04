@@ -23,7 +23,7 @@ public:
     }
 
     ParquetFileReader(const std::shared_ptr<FileInputStream>& filename)
-        : _filename(filename), _opened(true), _numRows(0), _buffer(nullptr), _currentBufferLen(0) {
+        : _filename(filename), _opened(true), _numRows(0), _buffer(nullptr), _currentBufferLen(0), _codec(Compression::UNCOMPRESSED) {
         try {
             _file.open(filename->filename(), std::ios::in | std::ios::binary);
         } catch (...) {
@@ -46,8 +46,12 @@ public:
         } catch (...) {}
     }
 
-    ParquetSchema& schema() {
-        return _schema;
+    std::vector<SchemaElement>& schema() {
+        return _schemas;
+    }
+
+    uint64_t NumRows() {
+        return _numRows;
     }
 
     void ReadFileMetadata() {
@@ -169,6 +173,7 @@ public:
 
                     _decoder.decodeFieldBegin();  // codec
                     data.__set_codec((CompressionCodec::type)_decoder.decodeI32());
+                    _codec = CompressionConvert(data._codec);
                     _decoder.decodeFieldBegin();  // num values
                     data.__set_num_values(_decoder.decodeI64());
                     _decoder.decodeFieldBegin();  // total uncompressed
@@ -276,13 +281,13 @@ private:
         }
         _file.seekg(offset, std::ios::beg);
         _file.read(reinterpret_cast<char*>(_buffer), dataSize);
-        batch->ParseBuffer(type, _buffer, numValues, name);
+        batch->ParseBuffer(type, _buffer, numValues, name, dataSize);
     }
 
     void ReadIntoBatch() {
         size_t indexer = 1;
         for (const auto& rowGroup : _fileMetaData._rowGroups) {
-            auto batch = std::make_shared<RecordBatch>(_schemas);
+            auto batch = std::make_shared<RecordBatch>(_schemas, _codec);
             _records.push_back(batch);
             for (const auto& chunk : rowGroup._columns) {
                 size_t chunkOffset = chunk._fileOffset;
@@ -311,6 +316,7 @@ private:
     std::vector<std::shared_ptr<RecordBatch>> _records;
     char* _buffer;
     size_t _currentBufferLen;
+    Compression::type _codec;
 };
 
 }  // end namespace clearParquet

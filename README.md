@@ -3,6 +3,10 @@ A minimal dependency fast parquet format writer and reader. Header only so it do
 If libzstd.a and/or libsnappy.a are found on the system, options to enable those compression algorithms will be enabled.
 For windows, zstd.lib and/or snappy.lib enable those compression algorithms. 
 
+# Unittesting framework for Catch2
+git submodule update --init 
+
+# Building
 mkdir build
 cd build
 cmake ../ -DCMAKE_BUILD_TYPE=Release
