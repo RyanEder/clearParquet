@@ -10,9 +10,9 @@
 #include <zstd.h>
 #endif
 
+#include "ParquetArray.hpp"
 #include "ParquetDataStore.hpp"
 #include "ParquetSchema.hpp"
-#include "ParquetArray.hpp"
 
 namespace clearParquet {
 
@@ -80,7 +80,7 @@ public:
                         throw std::invalid_argument("Unsupported type: FIXED_LEN_BYTE_ARRAY");
                         break;
                     default:
-                       break;
+                        break;
                 }
             }
         }
@@ -108,8 +108,7 @@ public:
 #else
             throw std::runtime_error("File compressed in a form this reader cannot uncompress.");
 #endif
-        }
-        else if (_codec == Compression::SNAPPY) {
+        } else if (_codec == Compression::SNAPPY) {
 #if defined(PARQUET_SNAPPY_COMPRESSION)
             size_t rSize = 0;
             snappy::GetUncompressedLength(cBuffer, dataSize, &rSize);
@@ -118,8 +117,7 @@ public:
 #else
             throw std::runtime_error("File compressed in a form this reader cannot uncompress.");
 #endif
-        }
-        else if (_codec != Compression::UNCOMPRESSED) {
+        } else if (_codec != Compression::UNCOMPRESSED) {
             throw std::runtime_error("File compressed in a form this reader cannot uncompress.");
             return;
         }
@@ -127,7 +125,7 @@ public:
             _maxValues = numValues;
         }
         if (type == Type::BYTE_ARRAY) {
-            auto &col = *static_cast<StrArray*>(_strCols[_strIndexer]);
+            auto& col = *static_cast<StrArray*>(_strCols[_strIndexer]);
             size_t offset = 0;
             for (size_t i = 0; i < numValues; ++i) {
                 size_t len = *(uint32_t*)(buffer + offset);
@@ -172,7 +170,7 @@ public:
             col.SetType(Type::FLOAT);
             _orderedCols.push_back(&col);
             IncrementIndexer(_floatIndexer, _floatCols);
-        } else if (type == Type::INT96 || type ==  Type::FIXED_LEN_BYTE_ARRAY) {
+        } else if (type == Type::INT96 || type == Type::FIXED_LEN_BYTE_ARRAY) {
             throw std::invalid_argument("Unsupported type");
         }
         _orderedCols.back()->SetName(name);
@@ -196,10 +194,10 @@ public:
         return _orderedCols[i]->ToString();
     }
 
-    uint64_t NumColumns() { 
+    uint64_t NumColumns() {
         return _orderedCols.size();
     }
-    
+
     void PrintBatch() {
         std::cout << "| ";
         for (const auto& arr : _orderedCols) {
@@ -210,7 +208,9 @@ public:
             std::cout << "| ";
             for (size_t j = 0; j < _orderedCols.size(); ++j) {
                 const Array* base = _orderedCols[j];
-                if (base == nullptr) { continue; }
+                if (base == nullptr) {
+                    continue;
+                }
                 const auto& type = base->GetType();
                 if (type == Type::BYTE_ARRAY) {
                     const auto& arr = *static_cast<const StrArray*>(base);

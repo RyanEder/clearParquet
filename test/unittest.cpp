@@ -207,3 +207,16 @@ TEST_CASE("Snappy Read") {
         }
     }
 }
+
+TEST_CASE("Vector Read") {
+    WriteSimpleRows(100);
+    std::shared_ptr<clearParquet::FileInputStream> infile = clearParquet::FileInputStream::Open("test_output.parquet");
+    auto reader = clearParquet::ParquetFileReader::Open(infile);
+    for (const auto& batch : *reader) {
+        for (uint64_t i = 0; i < batch->NumColumns(); ++i) {
+            std::shared_ptr<std::vector<uint64_t>> data;
+            REQUIRE(batch->Column(i)->ToVector(data) == true);
+            REQUIRE(data->size() == 100);
+        }
+    }
+}
