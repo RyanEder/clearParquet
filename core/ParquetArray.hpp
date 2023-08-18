@@ -1,7 +1,11 @@
 #pragma once
 
-#include <vector>
+#include "ParquetTypes.hpp"
+
 #include <any>
+#include <memory>
+#include <stdexcept>
+#include <vector>
 
 namespace clearParquet {
 
@@ -12,7 +16,9 @@ public:
         _type = type;
     }
 
-    const Type::type& GetType() const { return _type; }
+    const Type::type& GetType() const {
+        return _type;
+    }
 
     void SetName(std::string& name) {
         _name = name;
@@ -22,21 +28,45 @@ public:
         return _name;
     }
 
-    virtual bool ToVector(std::shared_ptr<std::vector<bool>>& /*input*/) { return false; }
-    virtual bool ToVector(std::shared_ptr<std::vector<uint32_t>>& /*input*/) { return false; }
-    virtual bool ToVector(std::shared_ptr<std::vector<uint64_t>>& /*input*/) { return false; }
-    virtual bool ToVector(std::shared_ptr<std::vector<float>>& /*input*/) { return false; }
-    virtual bool ToVector(std::shared_ptr<std::vector<double>>& /*input*/) { return false; }
-    virtual bool ToVector(std::shared_ptr<std::vector<std::string>>& /*input*/) { return false; }
+    virtual bool ToVector(std::shared_ptr<std::vector<bool>>& /*input*/) {
+        return false;
+    }
+    virtual bool ToVector(std::shared_ptr<std::vector<uint32_t>>& /*input*/) {
+        return false;
+    }
+    virtual bool ToVector(std::shared_ptr<std::vector<uint64_t>>& /*input*/) {
+        return false;
+    }
+    virtual bool ToVector(std::shared_ptr<std::vector<float>>& /*input*/) {
+        return false;
+    }
+    virtual bool ToVector(std::shared_ptr<std::vector<double>>& /*input*/) {
+        return false;
+    }
+    virtual bool ToVector(std::shared_ptr<std::vector<std::string>>& /*input*/) {
+        return false;
+    }
 
     virtual uint64_t Size() const = 0;
 
-    virtual uint32_t Int32Value(uint64_t /*i*/) const { return 0; }
-    virtual uint64_t Int64Value(uint64_t /*i*/) const { return 0; }
-    virtual std::string StrValue(uint64_t /*i*/) const { return {}; }
-    virtual bool BoolValue(uint64_t /*i*/) const { return false; }
-    virtual float FloatValue(uint64_t /*i*/) const { return 0.0; }
-    virtual double DoubleValue(uint64_t /*i*/) const { return 0.0; }
+    virtual uint32_t Int32Value(uint64_t /*i*/) const {
+        return 0;
+    }
+    virtual uint64_t Int64Value(uint64_t /*i*/) const {
+        return 0;
+    }
+    virtual std::string StrValue(uint64_t /*i*/) const {
+        return {};
+    }
+    virtual bool BoolValue(uint64_t /*i*/) const {
+        return false;
+    }
+    virtual float FloatValue(uint64_t /*i*/) const {
+        return 0.0;
+    }
+    virtual double DoubleValue(uint64_t /*i*/) const {
+        return 0.0;
+    }
 
     std::any Value(uint64_t i) const {
         switch (_type) {
@@ -81,11 +111,18 @@ public:
         }
     }
 
-    uint64_t Size() const override { return _values.size(); }
+    uint64_t Size() const override {
+        return _values.size();
+    }
 
-    bool BoolValue(uint64_t i) const override { return Value(i); }
+    bool BoolValue(uint64_t i) const override {
+        return Value(i);
+    }
 
-    bool ToVector(std::shared_ptr<std::vector<bool>>& input) override { input = std::make_shared<std::vector<bool>>(_values); return true; }
+    bool ToVector(std::shared_ptr<std::vector<bool>>& input) override {
+        input = std::make_shared<std::vector<bool>>(_values);
+        return true;
+    }
 
 private:
     std::vector<bool> _values;
@@ -108,11 +145,18 @@ public:
         }
     }
 
-    uint64_t Size() const override { return _values.size(); }
+    uint64_t Size() const override {
+        return _values.size();
+    }
 
-    uint32_t Int32Value(uint64_t i) const override { return Value(i); }
+    uint32_t Int32Value(uint64_t i) const override {
+        return Value(i);
+    }
 
-    bool ToVector(std::shared_ptr<std::vector<uint32_t>>& input) override { input = std::make_shared<std::vector<uint32_t>>(_values); return true; }
+    bool ToVector(std::shared_ptr<std::vector<uint32_t>>& input) override {
+        input = std::make_shared<std::vector<uint32_t>>(_values);
+        return true;
+    }
 
 private:
     std::vector<uint32_t> _values;
@@ -135,11 +179,18 @@ public:
         }
     }
 
-    uint64_t Size() const override { return _values.size(); }
+    uint64_t Size() const override {
+        return _values.size();
+    }
 
-    uint64_t Int64Value(uint64_t i) const override { return Value(i); }
+    uint64_t Int64Value(uint64_t i) const override {
+        return Value(i);
+    }
 
-    bool ToVector(std::shared_ptr<std::vector<uint64_t>>& input) override { input = std::make_shared<std::vector<uint64_t>>(_values); return true; }
+    bool ToVector(std::shared_ptr<std::vector<uint64_t>>& input) override {
+        input = std::make_shared<std::vector<uint64_t>>(_values);
+        return true;
+    }
 
 private:
     std::vector<uint64_t> _values;
@@ -162,11 +213,18 @@ public:
         }
     }
 
-    uint64_t Size() const override { return _values.size(); }
+    uint64_t Size() const override {
+        return _values.size();
+    }
 
-    float FloatValue(uint64_t i) const override { return Value(i); }
+    float FloatValue(uint64_t i) const override {
+        return Value(i);
+    }
 
-    bool ToVector(std::shared_ptr<std::vector<float>>& input) override { input = std::make_shared<std::vector<float>>(_values); return true; }
+    bool ToVector(std::shared_ptr<std::vector<float>>& input) override {
+        input = std::make_shared<std::vector<float>>(_values);
+        return true;
+    }
 
 private:
     std::vector<float> _values;
@@ -189,11 +247,18 @@ public:
         }
     }
 
-    uint64_t Size() const override { return _values.size(); }
+    uint64_t Size() const override {
+        return _values.size();
+    }
 
-    double DoubleValue(uint64_t i) const override { return Value(i); }
+    double DoubleValue(uint64_t i) const override {
+        return Value(i);
+    }
 
-    bool ToVector(std::shared_ptr<std::vector<double>>& input) override { input = std::make_shared<std::vector<double>>(_values); return true; }
+    bool ToVector(std::shared_ptr<std::vector<double>>& input) override {
+        input = std::make_shared<std::vector<double>>(_values);
+        return true;
+    }
 
 private:
     std::vector<double> _values;
@@ -211,13 +276,20 @@ public:
         _values.emplace_back(val);
     }
 
-    uint64_t Size() const override { return _values.size(); }
+    uint64_t Size() const override {
+        return _values.size();
+    }
 
-    std::string StrValue(uint64_t i) const override { return Value(i); }
+    std::string StrValue(uint64_t i) const override {
+        return Value(i);
+    }
 
-    bool ToVector(std::shared_ptr<std::vector<std::string>>& input) override { input = std::make_shared<std::vector<std::string>>(_values); return true; }
+    bool ToVector(std::shared_ptr<std::vector<std::string>>& input) override {
+        input = std::make_shared<std::vector<std::string>>(_values);
+        return true;
+    }
 
 private:
     std::vector<std::string> _values;
 };
-} // end namespace clearParquet
+}  // end namespace clearParquet
