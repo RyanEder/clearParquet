@@ -303,7 +303,7 @@ struct SchemaElement {
     }
 };
 
-std::ostream& operator<<(std::ostream& os, const SchemaElement& obj) {
+inline std::ostream& operator<<(std::ostream& os, const SchemaElement& obj) {
     os << " Type: " << obj._type << std::endl;
     os << " TypeLen: " << obj._typeLength << std::endl;
     os << " RepType: " << obj._repetitionType << std::endl;
