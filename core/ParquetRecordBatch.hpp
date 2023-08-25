@@ -140,7 +140,7 @@ public:
             col.SetType(Type::BYTE_ARRAY);
             _orderedCols.push_back(&col);
             IncrementIndexer(_strIndexer, _strCols);
-        } else if (Type::BOOLEAN) {
+        } else if (type == Type::BOOLEAN) {
             auto& col = *static_cast<BoolArray*>(_boolCols[_boolIndexer]);
             col.StoreBoolBlock(buffer, numValues);
             col.SetType(Type::BOOLEAN);

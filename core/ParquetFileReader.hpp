@@ -104,27 +104,27 @@ public:
                 element.__set_repetition_type((FieldRepetitionType::type)_decoder.decodeI32());
                 _decoder.decodeFieldBegin();  // name str
                 element.__set_name(_decoder.decodeString());
-                if (element._type != Type::BOOLEAN) {
-                    _decoder.decodeFieldBegin();  // conv type i32
-                    element.__set_converted_type((ConvertedType::type)_decoder.decodeI32());
-                    _decoder.decodeFieldBegin();  // logical struct
-                    _decoder.decodeFieldBegin();  // logical type struct.
-                    LogicalType ltype;
+                if (element._type != Type::BOOLEAN &&  element._type != Type::DOUBLE && element._type != Type::FLOAT) {
+                        _decoder.decodeFieldBegin();  // conv type i32
+                        element.__set_converted_type((ConvertedType::type)_decoder.decodeI32());
+                        _decoder.decodeFieldBegin();  // logical struct
+                        _decoder.decodeFieldBegin();  // logical type struct.
+                        LogicalType ltype;
 
-                    if (element._type == Type::INT64) {
-                        IntType t;
-                        _decoder.decodeFieldBegin();  // bitWidth byte
-                        t.__set_bitWidth(_decoder.decodeByte());
-                        //_decoder.decodeFieldBegin(); // isSigned bool
-                        t.__set_isSigned(_decoder.decodeBool());
-                        _decoder.decodeFieldStop();
-                        ltype.__set_INTEGER(ltype.INTEGER);
-                    } else if (element._type == Type::BYTE_ARRAY || element._type == Type::FIXED_LEN_BYTE_ARRAY) {
-                        _decoder.decodeFieldStop();  // logical type stop
-                        ltype.__set_STRING(ltype.STRING);
-                    }
-                    _decoder.decodeFieldStop();  // logical stop
-                    element.__set_logical_type(ltype);
+                        if (element._type == Type::INT64) {
+                            IntType t;
+                            _decoder.decodeFieldBegin();  // bitWidth byte
+                            t.__set_bitWidth(_decoder.decodeByte());
+                            //_decoder.decodeFieldBegin(); // isSigned bool
+                            t.__set_isSigned(_decoder.decodeBool());
+                            _decoder.decodeFieldStop();
+                            ltype.__set_INTEGER(ltype.INTEGER);
+                        } else if (element._type == Type::BYTE_ARRAY || element._type == Type::FIXED_LEN_BYTE_ARRAY) {
+                            _decoder.decodeFieldStop();  // logical type stop
+                            ltype.__set_STRING(ltype.STRING);
+                        }
+                        _decoder.decodeFieldStop();  // logical stop
+                        element.__set_logical_type(ltype);
                 }
                 _decoder.decodeFieldStop();  // schema stop
                 _schemas.push_back(element);

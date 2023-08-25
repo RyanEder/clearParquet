@@ -330,6 +330,7 @@ public:
                     if (++count == 8) {
                         CacheBuffer(1, (const uint8_t*)&storeValue);
                         count = 0;
+                        storeValue = 0;
                     }
                 }
                 if (count != 0) {

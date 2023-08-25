@@ -16,7 +16,7 @@ public:
 
     // Serialize a boolean into a byte stream using Compact Protocol.
     void writeBool(bool value) {
-        writeFieldBegin("", (value == 0) ? ThriftFieldType::T_BOOL_FALSE : ThriftFieldType::T_BOOL, _boolFieldId);
+        writeFieldBegin("", (value == 0) ? ThriftFieldType::T_BOOL_FALSE : ThriftFieldType::T_BOOL, _boolFieldId, true);
     }
 
     // Serialize a byte (uint8_t) into a byte stream using Compact Protocol.
@@ -62,8 +62,8 @@ public:
         writeByte(static_cast<uint8_t>(ThriftFieldType::T_STOP));
     }  // write stop bit
 
-    void writeFieldBegin(const std::string& /*name*/, ThriftFieldType fieldType, int16_t fieldId) {
-        if (fieldType == ThriftFieldType::T_BOOL) {
+    void writeFieldBegin(const std::string& /*name*/, ThriftFieldType fieldType, int16_t fieldId, bool boolAttempt = false) {
+        if (fieldType == ThriftFieldType::T_BOOL && boolAttempt == false) {
             _boolFieldId = fieldId;
             // wait for the value itself, bools are strange as the true/false have their own types.
             return;
