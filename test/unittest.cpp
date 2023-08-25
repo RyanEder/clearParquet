@@ -220,3 +220,36 @@ TEST_CASE("Vector Read") {
         }
     }
 }
+
+TEST_CASE("ReadWrite Int32") {    
+    std::shared_ptr<clearParquet::FileOutputStream> outfile = clearParquet::FileOutputStream::Open("test_output.parquet");
+    clearParquet::NodeVector columnNames{};
+    columnNames.push_back(clearParquet::PrimitiveNode::Make("UnitTest_Int32", clearParquet::Repetition::REQUIRED, clearParquet::Type::INT32, clearParquet::ConvertedType::NONE));
+
+    auto schema = std::static_pointer_cast<clearParquet::GroupNode>(clearParquet::GroupNode::Make("schema", clearParquet::Repetition::REQUIRED, columnNames));
+    clearParquet::WriterProperties::Builder builder;
+
+    std::unique_ptr<clearParquet::ParquetFileWriter> fwriter = clearParquet::ParquetFileWriter::Open(outfile, schema, builder.build());
+    clearParquet::StreamWriter writer = clearParquet::StreamWriter{std::move(fwriter)};
+    int32_t row = 0;
+    int32_t rows = 100;
+    for (int32_t i = 0; i < rows; ++i) {
+        writer << static_cast<int32_t>(row++) << clearParquet::EndRow;
+    }
+    writer.Close();
+
+    std::shared_ptr<clearParquet::FileInputStream> infile = clearParquet::FileInputStream::Open("test_output.parquet");
+    auto reader = clearParquet::ParquetFileReader::Open(infile);
+    for (const auto& batch : *reader) {
+        size_t num_cols = batch->NumColumns();
+        REQUIRE(num_cols == 1);
+        auto column_name = batch->Column(0)->ToString();
+        REQUIRE(column_name == "UnitTest_Int32");
+        REQUIRE(batch->Column(0)->Size() == static_cast<uint64_t>(rows));
+        REQUIRE(std::any_cast<int32_t>(batch->Column(0)->Value(rows - 1)) == (rows - 1));
+    }
+}
+TEST_CASE("ReadWrite Int64") {}
+TEST_CASE("ReadWrite Double") {}
+TEST_CASE("ReadWrite Bool") {}
+TEST_CASE("ReadWrite ByteArray") {}

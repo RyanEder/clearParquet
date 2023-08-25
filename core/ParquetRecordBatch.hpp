@@ -170,8 +170,10 @@ public:
             col.SetType(Type::FLOAT);
             _orderedCols.push_back(&col);
             IncrementIndexer(_floatIndexer, _floatCols);
-        } else if (type == Type::INT96 || type == Type::FIXED_LEN_BYTE_ARRAY) {
-            throw std::invalid_argument("Unsupported type");
+        } else if (type == Type::INT96) {
+            throw std::invalid_argument("Unsupported type: INT96");
+        } else if (type == Type::FIXED_LEN_BYTE_ARRAY) {
+            throw std::invalid_argument("Unsupported type: FIXED_LEN_BYTE_ARRAY");
         }
         _orderedCols.back()->SetName(name);
     }
