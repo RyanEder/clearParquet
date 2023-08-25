@@ -140,7 +140,7 @@ public:
             col.SetType(Type::BYTE_ARRAY);
             _orderedCols.push_back(&col);
             IncrementIndexer(_strIndexer, _strCols);
-        } else if (Type::BOOLEAN) {
+        } else if (type == Type::BOOLEAN) {
             auto& col = *static_cast<BoolArray*>(_boolCols[_boolIndexer]);
             col.StoreBoolBlock(buffer, numValues);
             col.SetType(Type::BOOLEAN);
@@ -170,8 +170,10 @@ public:
             col.SetType(Type::FLOAT);
             _orderedCols.push_back(&col);
             IncrementIndexer(_floatIndexer, _floatCols);
-        } else if (type == Type::INT96 || type == Type::FIXED_LEN_BYTE_ARRAY) {
-            throw std::invalid_argument("Unsupported type");
+        } else if (type == Type::INT96) {
+            throw std::invalid_argument("Unsupported type: INT96");
+        } else if (type == Type::FIXED_LEN_BYTE_ARRAY) {
+            throw std::invalid_argument("Unsupported type: FIXED_LEN_BYTE_ARRAY");
         }
         _orderedCols.back()->SetName(name);
     }

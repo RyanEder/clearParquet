@@ -104,7 +104,7 @@ public:
                 element.__set_repetition_type((FieldRepetitionType::type)_decoder.decodeI32());
                 _decoder.decodeFieldBegin();  // name str
                 element.__set_name(_decoder.decodeString());
-                if (element._type != Type::BOOLEAN) {
+                if (element._type != Type::BOOLEAN && element._type != Type::DOUBLE && element._type != Type::FLOAT) {
                     _decoder.decodeFieldBegin();  // conv type i32
                     element.__set_converted_type((ConvertedType::type)_decoder.decodeI32());
                     _decoder.decodeFieldBegin();  // logical struct
