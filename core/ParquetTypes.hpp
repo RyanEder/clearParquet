@@ -1,6 +1,8 @@
 #pragma once
 #include <string>
-
+#if defined(_WIN32) && defined(OPTIONAL)
+#undef OPTIONAL
+#endif
 namespace clearParquet {
 
 struct Compression {
