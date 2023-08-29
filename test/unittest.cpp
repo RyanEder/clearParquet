@@ -34,7 +34,7 @@ TEST_CASE("FWriter") {
     auto schema = std::static_pointer_cast<clearParquet::GroupNode>(clearParquet::GroupNode::Make("schema", clearParquet::Repetition::REQUIRED, columnNames));
     clearParquet::WriterProperties::Builder builder;
 
-    std::unique_ptr<clearParquet::ParquetFileWriter> fwriter = clearParquet::ParquetFileWriter::Open(outfile, schema, builder.build());
+    std::unique_ptr<clearParquet::ParquetFileWriter> fwriter = clearParquet::ParquetFileWriter::Open(outfile, schema, builder.build(), 2048);
 
     REQUIRE(fwriter != nullptr);
 }

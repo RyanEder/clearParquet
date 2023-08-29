@@ -18,9 +18,9 @@
 #include "ParquetWriterProperties.hpp"
 
 namespace clearParquet {
-constexpr size_t DEFAULT_ROW_SIZE = 1LL * 1024LL * 1024LL;  // 1MB
+constexpr size_t DEFAULT_ROW_SIZE = 16LL * 1024LL * 1024LL;  // 16MB
 constexpr size_t INTERNAL_BUFFER_SIZE = DEFAULT_ROW_SIZE * 2;
-constexpr size_t INITIAL_RESERVE_SIZE = 1024LL * 1024LL;
+constexpr size_t INITIAL_RESERVE_SIZE = 1024LL;
 constexpr std::string_view CREATED_BY = "clearParquet version 1.0.0";
 
 class ParquetFileWriter {
@@ -36,7 +36,8 @@ class ParquetFileWriter {
     // PAR1 -- Magic bytes again indicating parquet file end.
 
 public:
-    ParquetFileWriter(const std::shared_ptr<FileOutputStream>& filename, ParquetSchema& schema, const std::shared_ptr<WriterProperties>& properties)
+    ParquetFileWriter(const std::shared_ptr<FileOutputStream>& filename, ParquetSchema& schema, const std::shared_ptr<WriterProperties>& properties,
+                      const size_t initialReserve)
         : _filename(filename),
           _schema(schema),
           _opened(true),
@@ -89,25 +90,25 @@ public:
                 Type::type ctype = (Type::type)utype;
                 switch (ctype) {
                     case Type::BOOLEAN:
-                        _boolCols = std::make_shared<DataStore<bool>>(INITIAL_RESERVE_SIZE, counts[utype]);
+                        _boolCols = std::make_shared<DataStore<bool>>(initialReserve, counts[utype]);
                         break;
                     case Type::INT32:
-                        _int32Cols = std::make_shared<DataStore<int32_t>>(INITIAL_RESERVE_SIZE, counts[utype]);
+                        _int32Cols = std::make_shared<DataStore<int32_t>>(initialReserve, counts[utype]);
                         break;
                     case Type::INT64:
-                        _int64Cols = std::make_shared<DataStore<int64_t>>(INITIAL_RESERVE_SIZE, counts[utype]);
+                        _int64Cols = std::make_shared<DataStore<int64_t>>(initialReserve, counts[utype]);
                         break;
                     case Type::INT96:
                         throw std::invalid_argument("Unsupported type: INT96");
                         break;
                     case Type::FLOAT:
-                        _floatCols = std::make_shared<DataStore<float>>(INITIAL_RESERVE_SIZE, counts[utype]);
+                        _floatCols = std::make_shared<DataStore<float>>(initialReserve, counts[utype]);
                         break;
                     case Type::DOUBLE:
-                        _doubleCols = std::make_shared<DataStore<double>>(INITIAL_RESERVE_SIZE, counts[utype]);
+                        _doubleCols = std::make_shared<DataStore<double>>(initialReserve, counts[utype]);
                         break;
                     case Type::BYTE_ARRAY:
-                        _strCols = std::make_shared<DataStore<std::string>>(INITIAL_RESERVE_SIZE, counts[utype]);
+                        _strCols = std::make_shared<DataStore<std::string>>(initialReserve, counts[utype]);
                         break;
                     case Type::FIXED_LEN_BYTE_ARRAY:
                         throw std::invalid_argument("Unsupported type: FIXED_LEN_BYTE_ARRAY");
@@ -440,8 +441,8 @@ public:
     }
 
     static std::unique_ptr<ParquetFileWriter> Open(const std::shared_ptr<FileOutputStream>& filename, ParquetSchema& schema,
-                                                   const std::shared_ptr<WriterProperties>& properties) {
-        std::unique_ptr<ParquetFileWriter> result(new ParquetFileWriter(filename, schema, properties));
+                                                   const std::shared_ptr<WriterProperties>& properties, const size_t initialReserve = INITIAL_RESERVE_SIZE) {
+        std::unique_ptr<ParquetFileWriter> result(new ParquetFileWriter(filename, schema, properties, initialReserve));
         return result;
     }
 
