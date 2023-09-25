@@ -107,7 +107,7 @@ void WriteSimpleRows(uint64_t rows) {
     clearParquet::StreamWriter writer = clearParquet::StreamWriter{std::move(fwriter)};
     uint64_t row = 0;
     for (uint64_t i = 0; i < rows; ++i) {
-        writer << row++ << clearParquet::EndRow;
+        writer << INT64_MAX-(row++) << clearParquet::EndRow;
     }
     writer.Close();
 }
@@ -159,7 +159,7 @@ TEST_CASE("Read Values") {
     for (const auto& batch : *reader) {
         for (uint64_t i = 0; i < batch->NumColumns(); ++i) {
             REQUIRE(batch->Column(i)->ToString() == "Unittest");
-            REQUIRE(std::any_cast<uint64_t>(batch->Column(i)->Value(batch->Column(i)->Size()-1)) == 99);
+            REQUIRE(std::any_cast<uint64_t>(batch->Column(i)->Value(batch->Column(i)->Size()-1)) == INT64_MAX-99);
         }
     }
 }

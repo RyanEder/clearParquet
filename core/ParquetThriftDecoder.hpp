@@ -71,7 +71,7 @@ public:
 
     // Deserialize an int64_t from the binary data.
     int64_t decodeI64(const char* data, size_t& offset) {
-        return static_cast<int64_t>(decodeVarint(data, offset));
+        return static_cast<int64_t>(decodeVarint64(data, offset));
     }
 
     // Deserialize a string from the binary data.
@@ -113,6 +113,19 @@ private:
         while (true) {
             uint8_t byte = static_cast<uint8_t>(data[offset++]);
             result |= static_cast<int32_t>(byte & 0x7F) << shift;
+            if ((byte & 0x80) == 0) {
+                // Zigzag decoding: Convert unsigned int to signed int
+                return (result >> 1) ^ -(result & 1);
+            }
+            shift += 7;
+        }
+    }
+    int64_t decodeVarint64(const char* data, size_t& offset) {
+        int64_t result = 0;
+        int64_t shift = 0;
+        while (true) {
+            uint8_t byte = static_cast<uint8_t>(data[offset++]);
+            result |= static_cast<int64_t>(byte & 0x7F) << shift;
             if ((byte & 0x80) == 0) {
                 // Zigzag decoding: Convert unsigned int to signed int
                 return (result >> 1) ^ -(result & 1);

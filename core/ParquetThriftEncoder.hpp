@@ -36,7 +36,7 @@ public:
 
     // Serialize an int64_t into a byte stream using Compact Protocol.
     void writeI64(int64_t value) {
-        writeVarint(zigzagEncode(value));
+        writeVarint64(zigzagEncode(value));
     }
 
     void writeStructBegin(const std::string& /*fieldName*/) {
@@ -104,6 +104,17 @@ public:
 private:
     // Helper function to write a varint (variable-length integer) to the buffer.
     void writeVarint(int32_t value) {
+        while (true) {
+            if ((value & ~0x7F) == 0) {
+                _buffer.push_back(static_cast<uint8_t>(value));
+                return;
+            }
+            _buffer.push_back(static_cast<uint8_t>((value & 0x7F) | 0x80));
+            value >>= 7;
+        }
+    }
+
+    void writeVarint64(int64_t value) {
         while (true) {
             if ((value & ~0x7F) == 0) {
                 _buffer.push_back(static_cast<uint8_t>(value));
